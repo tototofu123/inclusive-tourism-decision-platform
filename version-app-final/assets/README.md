@@ -1,3 +1,7 @@
 # Assets – App Final
 
-All diagrams, design assets, and prompts.
+Assets for the final app:
+
+- Complete diagram set.
+- Design system documentation.
+- Prompt libraries.

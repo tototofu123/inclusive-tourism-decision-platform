@@ -1,3 +1,7 @@
 # Assets – App v3
 
-Mobile-specific diagrams and mocks.
+Assets for App v3:
+
+- Mobile UI mockups.
+- Architecture diagrams showing web + mobile.
+- Wake-word UX guidelines.

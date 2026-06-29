@@ -1,3 +1,9 @@
 # Files Needed – App Final
 
-All required files/modules for production.
+This document lists files for the final app.
+
+- Production web and mobile projects.
+- IaC (infrastructure-as-code) files for Google Cloud.
+- Monitoring and logging configs.
+
+These represent the full production codebase.

@@ -1,3 +1,11 @@
 # Agent – App Final
 
-Final multi-agent system description.
+This document describes the final multi-agent system.
+
+- Route Planner Agent.
+- Place Selector Agent.
+- Accessibility Scoring Agent.
+- Merchant Advisory Agent.
+- City Insight Agent.
+
+All orchestrated via ADK and Vertex AI.

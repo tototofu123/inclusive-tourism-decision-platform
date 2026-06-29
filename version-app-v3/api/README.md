@@ -1,3 +1,9 @@
 # API – App v3
 
-APIs for mobile sync and live location.
+API surface for App v3 includes:
+
+- `/mobile/itinerary/latest`
+- `/mobile/sync`
+- `/mobile/location`
+
+These complement existing web endpoints.
