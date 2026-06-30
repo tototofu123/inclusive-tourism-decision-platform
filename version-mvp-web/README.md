@@ -1,129 +1,97 @@
-# Version MVP Web — Local AI + SQLite
+# MVP Web — Inclusive Tourism HK
 
-The first runnable version. No cloud keys. Runs entirely on your machine using **llama.cpp** for AI and **SQLite** for data.
+Full working web MVP. Node.js/Express backend + Next.js frontend + local llama.cpp AI.
 
-## Prerequisites
+## Quick Start
 
+### Prerequisites
 - Node.js 18+
-- A running [llama.cpp](https://github.com/ggerganov/llama.cpp) server (see below)
-- Any GGUF model (e.g. Mistral 7B, LLaMA 3.1 8B)
+- PostgreSQL 14+
+- [llama.cpp](https://github.com/ggerganov/llama.cpp) built locally with a 3B–7B GGUF model
 
----
-
-## 1. Start llama.cpp server
+### 1. Start the local LLM
 
 ```bash
-# Download a model (example: Mistral 7B Q4)
-wget https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/resolve/main/mistral-7b-instruct-v0.2.Q4_K_M.gguf
-
-# Start server (OpenAI-compatible on port 8080)
-./llama-server -m mistral-7b-instruct-v0.2.Q4_K_M.gguf -c 4096 --port 8080 -ngl 35
-# -ngl 35 = offload 35 layers to GPU (remove if no GPU)
+# Download a model first (e.g. Llama-3.2-3B-Instruct-Q4_K_M.gguf)
+./llama-server -m models/Llama-3.2-3B-Instruct-Q4_K_M.gguf --port 8080 --ctx-size 4096
 ```
 
----
-
-## 2. Start Backend
+### 2. Backend
 
 ```bash
 cd version-mvp-web/backend
-
-# Install dependencies
+cp .env.example .env          # fill in DB credentials
 npm install
-
-# Copy env file
-cp .env.example .env
-# Edit .env if your llama.cpp runs on a different port
-
-# Seed the database with 10 HK accessible spots
-npm run seed
-
-# Start backend (port 3001)
-npm run dev
+node src/database/migrate.js  # create tables
+node src/database/seed.js     # seed 8 sample HK places
+npm run dev                   # starts on :3001
 ```
 
-You should see:
-```
-🚀 MVP Backend running at http://localhost:3001
-   llama.cpp endpoint: http://localhost:8080
-   DB: ./db/mvp.sqlite
-```
-
----
-
-## 3. Start Frontend
+### 3. Frontend
 
 ```bash
 cd version-mvp-web/frontend
-
-# Install dependencies
-npm install
-
-# Copy env file
 cp .env.local.example .env.local
-
-# Start frontend (port 3000)
-npm run dev
+npm install
+npm run dev                   # starts on :3000
 ```
 
-Open **http://localhost:3000**
-
----
-
-## How it works
-
-```
-Browser (Next.js :3000)
-  └─ POST /api/itinerary
-        └─ Express backend (:3001)
-              ├─ Loads user profile from SQLite
-              ├─ Queries accessible places from SQLite  
-              └─ Sends prompt → llama.cpp (:8080)
-                    └─ Returns JSON itinerary plan
-```
+Open http://localhost:3000
 
 ## API Endpoints
 
-| Method | Route | Description |
-|--------|-------|-------------|
-| GET | `/health` | Backend health check |
-| GET | `/api/places` | List places (filter: `district`, `mobility`, `min_score`) |
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/health` | Server + DB + LLM status |
+| POST | `/api/plan` | Generate accessible itinerary |
+| GET | `/api/places?lat=&lng=&radius=&tags=` | Find nearby accessible places |
 | GET | `/api/places/:id` | Get single place |
-| POST | `/api/profile` | Create/update user profile |
-| GET | `/api/profile/:session_id` | Get profile |
-| POST | `/api/itinerary` | Generate itinerary (calls llama.cpp) |
-| GET | `/api/itinerary/:id` | Get saved itinerary |
 
-## Project Structure
+### POST /api/plan — Request body
+
+```json
+{
+  "message": "Half-day sightseeing near Tsim Sha Tsui",
+  "userProfile": {
+    "mobility": "wheelchair",
+    "needsRestFrequently": true
+  },
+  "location": { "lat": 22.2996, "lng": 114.1717 },
+  "lang": "en"
+}
+```
+
+## Architecture
+
+```
+Browser (Next.js)
+  └─ POST /api/plan
+       └─ backend/src/routes/plan.js
+            └─ services/planner.js
+                 ├─ services/llmGateway.js  ──►  llama.cpp :8080
+                 └─ services/places.js     ──►  PostgreSQL
+```
+
+## Folder structure
 
 ```
 backend/
-  server.js              ← Express entry point
-  agent/planningAgent.js ← llama.cpp prompt builder + caller
-  db/
-    schema.sql           ← SQLite schema
-    seed.js              ← 10 seeded HK accessible spots
-    database.js          ← DB singleton
-  routes/
-    itinerary.js
-    places.js
-    profile.js
-
+  src/
+    server.js          Express app + middleware
+    routes/            plan.js, places.js, health.js
+    services/          planner.js, llmGateway.js, places.js
+    database/          pool.js, migrate.js, seed.js
 frontend/
-  pages/
-    index.js             ← Profile setup
-    plan.js              ← Chat + itinerary display
-  components/
-    ChatInput.js
-    ItineraryCard.js
-    AccessibilityBadge.js
+  src/
+    app/               Next.js App Router pages
+    components/        PlannerForm, ItineraryView, PlacesMap, LeafletMap
 ```
 
----
+## Migration path to Web v2
 
-## Migrating to Web v1 (Gemini + AlloyDB)
+Swap these two env vars to point at Google Cloud — no other code changes needed:
 
-This MVP is designed so migration is a single file swap:
-- Replace `backend/agent/planningAgent.js` → swap `callLlama()` for `callGemini()`  
-- Replace `backend/db/database.js` → swap SQLite for AlloyDB/Postgres connection
-- All routes stay identical — zero frontend changes needed
+```env
+LLAMA_BASE_URL=https://REGION-aiplatform.googleapis.com/v1/projects/PROJECT/locations/REGION/publishers/google/models/gemini-2.0-flash
+DB_HOST=<alloydb-ip>
+```

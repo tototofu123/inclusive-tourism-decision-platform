@@ -1,22 +1,25 @@
 {
   "name": "inclusive-tourism-backend",
   "version": "1.0.0",
-  "description": "MVP backend — llama.cpp local AI + SQLite",
-  "main": "server.js",
+  "description": "MVP backend - Node.js/Express AI gateway + REST API",
+  "main": "src/server.js",
   "scripts": {
-    "dev": "nodemon server.js",
-    "start": "node server.js",
-    "seed": "node db/seed.js"
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "db:migrate": "node src/database/migrate.js",
+    "db:seed": "node src/database/seed.js"
   },
   "dependencies": {
+    "express": "^4.18.2",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "express": "^4.19.2",
+    "dotenv": "^16.3.1",
+    "pg": "^8.11.3",
     "node-fetch": "^3.3.2",
-    "pg": "^8.22.0",
-    "sql.js": "^1.10.2"
+    "helmet": "^7.1.0",
+    "express-rate-limit": "^7.1.5",
+    "morgan": "^1.10.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.0"
+    "nodemon": "^3.0.2"
   }
 }

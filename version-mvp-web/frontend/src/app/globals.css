@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Leaflet map needs a height to render */
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  border-radius: 0.5rem;
+}
+
+/* Accessibility: larger focus rings for keyboard nav */
+*:focus-visible {
+  outline: 3px solid #059669;
+  outline-offset: 2px;
+}
