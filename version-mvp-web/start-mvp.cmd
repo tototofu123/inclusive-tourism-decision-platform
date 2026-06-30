@@ -13,7 +13,7 @@ if not exist "%LLAMA_EXE%" set LLAMA_EXE=C:\Users\totot\AppData\Local\Microsoft\
 if exist "%LLAMA_EXE%" (
   if not "%MODEL_FILE%"=="" (
     echo [1/3] Starting llama.cpp on port 8081...
-    start "LLM" cmd /c ""%LLAMA_EXE%" -m "%MODEL_FILE%" --port 8081 -ngl 99"
+    start /b "LLM" cmd /c ""%LLAMA_EXE%" -m "%MODEL_FILE%" --port 8081 -ngl 99" >nul 2>&1
     timeout /t 8 /nobreak >nul
   ) else (
     echo [SKIP] LLM: No .gguf model found in %LLAMA_MODELS_DIR%
@@ -27,7 +27,7 @@ echo.
 echo [2/3] Starting backend (port 4000)...
 cd /d backend
 if not exist ".env" copy .env.example .env >nul
-start "BE" cmd /c "npx tsx src/index.ts"
+start /b "BE" cmd /c "npx tsx src/index.ts" >nul 2>&1
 cd /d ..
 timeout /t 6 /nobreak >nul
 echo.
@@ -35,14 +35,22 @@ echo.
 :: 3. Frontend
 echo [3/3] Starting frontend (port 3000)...
 cd /d frontend
-start "FE" cmd /c "npx next dev -p 3000"
+start /b "FE" cmd /c "npx next dev -p 3000" >nul 2>&1
 cd /d ..
 timeout /t 6 /nobreak >nul
-
 echo.
-echo === MVP Running ===
+
+echo =============================================
+echo  All services started in this window
 echo   Frontend: http://localhost:3000
 echo   Backend:  http://localhost:4000
 echo   LLM:      http://localhost:8081 (if model found)
+echo =============================================
 echo.
-pause
+echo Press any key to stop all services and exit.
+echo.
+pause >nul
+echo Stopping services...
+taskkill /f /im llama-server.exe >nul 2>&1
+taskkill /f /im node.exe >nul 2>&1
+echo Done.
