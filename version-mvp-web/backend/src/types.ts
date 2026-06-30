@@ -54,10 +54,13 @@ export interface LLMStop {
   category: string;
   approx_duration_minutes: number;
   notes?: string;
+  day?: number;
 }
 
 export interface LLMResponse {
   stops: LLMStop[];
   total_duration_minutes: number;
+  days?: number;
+  focus_areas?: string[];
   ordering_hint?: string;
 }

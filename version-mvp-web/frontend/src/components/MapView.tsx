@@ -19,21 +19,27 @@ export default function MapView({
 }) {
   const el = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
+  const markerLayer = useRef<L.LayerGroup | null>(null);
+  const routeLayer = useRef<L.LayerGroup | null>(null);
 
   useEffect(() => {
     if (!el.current || mapRef.current) return;
     const map = L.map(el.current, { center: KOWLOON_CENTER, zoom: 13 });
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OSM', maxZoom: 19,
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+      maxZoom: 19,
     }).addTo(map);
     mapRef.current = map;
-    return () => { map.remove(); mapRef.current = null; };
+    markerLayer.current = L.layerGroup().addTo(map);
+    routeLayer.current = L.layerGroup().addTo(map);
+    return () => { map.remove(); mapRef.current = null; markerLayer.current = null; routeLayer.current = null; };
   }, []);
 
   useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    map.eachLayer(l => { if (!(l instanceof L.TileLayer)) map.removeLayer(l); });
+    const ml = markerLayer.current, rl = routeLayer.current, map = mapRef.current;
+    if (!ml || !rl || !map) return;
+    ml.clearLayers();
+    rl.clearLayers();
 
     if (markers.length === 0 && routes.length === 0) {
       map.setView(KOWLOON_CENTER, 13);
@@ -52,16 +58,20 @@ export default function MapView({
       const popup = m.day
         ? `<b>${m.label}</b><br/><span style="color:#0070f3;font-size:.85rem">Day ${m.day}</span>`
         : `<b>${m.label}</b>`;
-      bounds.extend(L.marker([m.lat, m.lng], { icon }).bindPopup(popup).addTo(map).getLatLng());
+      const marker = L.marker([m.lat, m.lng], { icon }).bindPopup(popup);
+      ml.addLayer(marker);
+      bounds.extend(marker.getLatLng());
     });
 
     routes.forEach(r => {
       if (r.geometry?.coordinates?.length) {
         const coords = r.geometry.coordinates.map((c: number[]) => [c[1], c[0]] as [number, number]);
-        L.polyline(coords, { color: '#0070f3', weight: 3, opacity: 0.7 }).addTo(map);
-        coords.forEach((c: [number, number]) => bounds.extend(c));
+        const poly = L.polyline(coords, { color: '#0070f3', weight: 3, opacity: 0.7 });
+        rl.addLayer(poly);
+        coords.forEach(c => bounds.extend(c));
       } else {
-        L.polyline([r.from, r.to], { color: '#0070f3', weight: 2, opacity: 0.4, dashArray: '8,8' }).addTo(map);
+        const poly = L.polyline([r.from, r.to], { color: '#0070f3', weight: 2, opacity: 0.4, dashArray: '8,8' });
+        rl.addLayer(poly);
         bounds.extend(r.from); bounds.extend(r.to);
       }
     });

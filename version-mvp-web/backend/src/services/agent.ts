@@ -87,17 +87,17 @@ async function createItinerary(text: string): Promise<{ itinerary: NonNullable<C
   resolved = nearestNeighborReorder(resolved);
   th.push(`Reordered stops to minimize walking distance`);
 
-  const totalStops = resolved.length;
-  const days = totalStops > 5 ? Math.ceil(totalStops / 3) : 1;
-  const stopsPerDay = Math.ceil(totalStops / days);
+  const days = llmPlan.days || 1;
+  if (llmPlan.focus_areas?.length) th.push(`Focus areas: ${llmPlan.focus_areas.join(', ')}`);
 
   const itineraryId = await saveItinerary(text, 'Kowloon');
   const stops: Array<{ label: string; placeId: number; startTime: string; endTime: string; lat: number; lng: number; day: number; distance: number }> = [];
-  let hour = 9;
+  let currentDay = 1, hour = 9;
 
   for (let i = 0; i < resolved.length; i++) {
     const p = resolved[i];
-    const day = Math.min(Math.floor(i / stopsPerDay) + 1, days);
+    const day = Math.min(p.day || currentDay, days);
+    if (day !== currentDay) { currentDay = day; hour = 9; }
     const st = `${String(hour).padStart(2, '0')}:00`;
     hour += Math.ceil(p.duration / 60);
     const et = `${String(hour).padStart(2, '0')}:00`;

@@ -27,11 +27,12 @@ router.post('/chat', async (req: Request, res: Response) => {
 
     res.json(result);
   } catch (err) {
-    console.error('Chat error:', err);
+    const msg = (err as Error).message;
+    console.error('Chat error:', msg);
     res.status(500).json({
-      thinking: ['Something went wrong', 'Try again with a simpler request'],
+      thinking: ['Error processing request', msg],
       intent: 'question',
-      response: 'Sorry, I encountered an error. Please try again.',
+      response: msg,
     });
   }
 });
