@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/router';
 import ChatInput from '../components/ChatInput';
 import ItineraryCard from '../components/ItineraryCard';
+
+const PlacesMap = dynamic(() => import('../components/PlacesMap'), { ssr: false });
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -106,6 +109,11 @@ export default function PlanPage() {
                   <p className="text-sm text-gray-500 mt-0.5">{plan.duration} · {plan.accessibility_level}</p>
                 </div>
               </div>
+            </div>
+
+            {/* Map */}
+            <div className="mb-4">
+              <PlacesMap itinerary={plan.stops || []} suggestedPlaces={[]} />
             </div>
 
             {/* Stops */}
