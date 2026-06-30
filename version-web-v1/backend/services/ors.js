@@ -1,4 +1,3 @@
-// OpenRouteService client — uses OSRM-compatible API for routing between stops
 const fetch = (...args) => import('node-fetch').then(({ default: f }) => f(...args));
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
@@ -8,7 +7,10 @@ const ORS_BASE = process.env.ORS_BASE || 'https://router.project-osrm.org';
 async function route(startLng, startLat, endLng, endLat, profile = 'foot') {
   const url = `${ORS_BASE}/route/v1/${profile}/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson&steps=true`;
   try {
-    const resp = await fetch(url, { timeout: 10000 });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+    const resp = await fetch(url, { signal: controller.signal });
+    clearTimeout(timer);
     if (!resp.ok) return null;
     const data = await resp.json();
     if (!data.routes?.length) return null;

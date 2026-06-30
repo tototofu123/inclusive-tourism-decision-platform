@@ -134,7 +134,7 @@ function buildFallbackPlan({ userRequest, profile, candidatePlaces, routing, dur
     if (p.bench_count > 5) notes.push(`${p.bench_count}+ benches for resting.`);
     if (!notes.length) notes.push('Flat paved paths.');
 
-    const routeData = routing?.find(r => r.from === p.name || r.to === p.name);
+    const routeData = routing?.[i];
     const transit = i < places.length - 1
       ? (routeData?.route
           ? `Walk ~${routeData.route.duration_min} min (${routeData.route.distance_km} km)`

@@ -49,6 +49,8 @@ function textForPlace(p) {
 async function main() {
   await pg.initSchema();
 
+  await pg.exec('DELETE FROM places');
+
   const placesWithEmbeds = [];
   for (const p of PLACES) {
     const text = textForPlace(p);
@@ -65,15 +67,13 @@ async function main() {
       const embedStr = `[${embedArr.join(',')}]`;
       await pg.query(`INSERT INTO places (name, name_zh, district, lat, lng, category, accessibility_score,
             has_ramp, has_lift, has_accessible_toilet, has_tactile_path, bench_count, notes, embedding)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::vector)
-           ON CONFLICT DO NOTHING`,
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::vector)`,
         [p.name, p.name_zh, p.district, p.lat, p.lng, p.category, p.accessibility_score,
          p.has_ramp, p.has_lift, p.has_accessible_toilet, p.has_tactile_path, p.bench_count, p.notes, embedStr]);
     } else {
       await pg.query(`INSERT INTO places (name, name_zh, district, lat, lng, category, accessibility_score,
             has_ramp, has_lift, has_accessible_toilet, has_tactile_path, bench_count, notes)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
-           ON CONFLICT DO NOTHING`,
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
         [p.name, p.name_zh, p.district, p.lat, p.lng, p.category, p.accessibility_score,
          p.has_ramp, p.has_lift, p.has_accessible_toilet, p.has_tactile_path, p.bench_count, p.notes]);
     }
