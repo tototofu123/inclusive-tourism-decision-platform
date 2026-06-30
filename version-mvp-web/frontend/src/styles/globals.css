@@ -17,20 +17,50 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .msg .thinking-content{background:#f0f4ff;border-left:3px solid #0070f3;padding:8px 12px;margin-top:6px;border-radius:4px;font-size:0.82rem;color:#555;line-height:1.5;font-family:monospace}
 .msg .thinking-content div:first-child{color:#0070f3;font-weight:500}
 .msg .thinking-content div:last-child{color:#2e7d32;font-weight:500}
+.view-itinerary-link{font-size:0.8rem;color:#0070f3;cursor:pointer;margin-top:4px;display:inline-block}
+.view-itinerary-link:hover{text-decoration:underline}
 .chat-input{display:flex;gap:8px;padding:12px 16px;border-top:1px solid #e0e0e0;background:white;flex-shrink:0}
 .chat-input input{flex:1;padding:10px 16px;border:1px solid #ddd;border-radius:24px;font-size:0.95rem;outline:none}
 .chat-input input:focus{border-color:#0070f3}
 .chat-input button{padding:10px 20px;background:#0070f3;color:white;border:none;border-radius:24px;font-size:0.95rem;cursor:pointer;white-space:nowrap}
 .chat-input button:hover{background:#0051a8}
 .chat-input button:disabled{background:#ccc;cursor:not-allowed}
+.map-tab{display:flex;flex-direction:column}
+.map-tab .map-day-filters{display:flex;gap:6px;padding:8px 16px;background:white;border-bottom:1px solid #e0e0e0;overflow-x:auto;flex-shrink:0}
+.map-day-btn{padding:4px 14px;border:1px solid #d0d8f0;border-radius:14px;background:white;color:#0070f3;cursor:pointer;font-size:0.8rem;white-space:nowrap}
+.map-day-btn.active{background:#0070f3;color:white;border-color:#0070f3}
 .map-tab .map-full{flex:1}
 .map-tab .map-full .leaflet-container{height:100%;width:100%}
-.itinerary-tab{padding:16px}
-.itin-card{background:white;border:1px solid #e0e0e0;border-radius:12px;padding:14px;margin-bottom:12px;cursor:pointer;transition:border-color .2s}
+.itinerary-tab{padding:12px 16px}
+.itin-card{background:white;border:1px solid #e0e0e0;border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer;transition:border-color .2s}
 .itin-card:hover{border-color:#0070f3}
+.itin-card.active{border-color:#0070f3;background:#f0f4ff}
 .itin-card .itin-title{font-weight:600;font-size:0.95rem}
 .itin-card .itin-meta{font-size:0.8rem;color:#888;margin-top:4px}
 .itin-card .itin-preview{font-size:0.85rem;color:#666;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.detail-view{padding-bottom:20px}
+.detail-header{margin-bottom:16px}
+.detail-header h2{font-size:1.2rem;margin-bottom:4px}
+.detail-meta{font-size:0.8rem;color:#888;margin-bottom:4px}
+.detail-prompt{font-size:0.85rem;color:#666;font-style:italic;margin-bottom:8px}
+.back-btn{background:none;border:none;color:#0070f3;cursor:pointer;font-size:0.85rem;padding:0}
+.back-btn:hover{text-decoration:underline}
+.day-group{margin-bottom:16px}
+.day-header{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#f0f4ff;border-radius:8px;margin-bottom:8px}
+.day-title{font-weight:600;font-size:0.95rem;color:#0070f3}
+.day-meta{font-size:0.8rem;color:#888}
+.day-total{font-size:0.8rem;color:#888;padding:6px 12px;border-top:1px solid #eee;margin-top:4px}
+.stop-card{display:flex;gap:12px;padding:10px 12px;margin-bottom:6px;background:white;border:1px solid #e8e8e8;border-radius:8px;transition:box-shadow .15s}
+.stop-card:hover{box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.stop-left{flex-shrink:0}
+.stop-num{width:28px;height:28px;border-radius:50%;background:#0070f3;color:white;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600}
+.stop-body{flex:1;min-width:0}
+.stop-name{font-weight:600;font-size:0.95rem}
+.stop-times{font-size:0.8rem;color:#888;margin-top:2px}
+.stop-cat{font-size:0.75rem;color:#666;background:#f5f5f5;display:inline-block;padding:1px 8px;border-radius:8px;margin-top:4px}
+.stop-walk{font-size:0.78rem;color:#e67e22;margin-top:4px}
+.stop-map-btn{font-size:0.75rem;color:#0070f3;background:none;border:none;cursor:pointer;padding:0;margin-top:4px}
+.stop-map-btn:hover{text-decoration:underline}
 .tabs{display:flex;background:white;border-top:1px solid #e0e0e0;flex-shrink:0}
 .tab{flex:1;text-align:center;padding:10px;cursor:pointer;font-size:0.85rem;color:#888;border:none;background:none;transition:color .2s;position:relative}
 .tab.active{color:#0070f3;font-weight:600}

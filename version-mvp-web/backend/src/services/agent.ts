@@ -4,6 +4,34 @@ import { resolveStops } from './placeResolver';
 import { getRoute } from './routingService';
 import { saveItinerary, saveItineraryItem, savePlace, query } from '../db/client';
 
+function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371e3;
+  const toRad = (d: number) => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1), dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function nearestNeighborReorder(
+  resolved: Array<{ placeId: number; label: string; lat: number; lng: number; duration: number }>
+): typeof resolved {
+  if (resolved.length <= 2) return resolved;
+  const ordered: typeof resolved = [resolved[0]];
+  const used = new Set<number>([0]);
+  while (ordered.length < resolved.length) {
+    const last = ordered[ordered.length - 1];
+    let best = -1, bestDist = Infinity;
+    for (let i = 0; i < resolved.length; i++) {
+      if (used.has(i)) continue;
+      const d = haversine(last.lat, last.lng, resolved[i].lat, resolved[i].lng);
+      if (d < bestDist) { bestDist = d; best = i; }
+    }
+    used.add(best);
+    ordered.push(resolved[best]);
+  }
+  return ordered;
+}
+
 function detectIntent(text: string): Intent {
   const t = text.toLowerCase();
   if (t.includes('create') || t.includes('plan') || t.includes('itinerary') || t.includes('trip') || t.includes('build') || t.includes('make'))
@@ -53,16 +81,23 @@ async function createItinerary(text: string): Promise<{ itinerary: NonNullable<C
     `Searching for places: ${categories.join(', ')}`,
   ];
 
-  const resolved = await resolveStops(llmPlan.stops);
+  let resolved = await resolveStops(llmPlan.stops);
   th.push(`Found ${resolved.length} accessible places for your trip`);
-  th.push(`Estimated total time: ${llmPlan.total_duration_minutes} min`);
+
+  resolved = nearestNeighborReorder(resolved);
+  th.push(`Reordered stops to minimize walking distance`);
+
+  const totalStops = resolved.length;
+  const days = totalStops > 5 ? Math.ceil(totalStops / 3) : 1;
+  const stopsPerDay = Math.ceil(totalStops / days);
 
   const itineraryId = await saveItinerary(text, 'Kowloon');
-  const stops: Array<{ label: string; placeId: number; startTime: string; endTime: string; lat: number; lng: number }> = [];
+  const stops: Array<{ label: string; placeId: number; startTime: string; endTime: string; lat: number; lng: number; day: number; distance: number }> = [];
   let hour = 9;
 
   for (let i = 0; i < resolved.length; i++) {
     const p = resolved[i];
+    const day = Math.min(Math.floor(i / stopsPerDay) + 1, days);
     const st = `${String(hour).padStart(2, '0')}:00`;
     hour += Math.ceil(p.duration / 60);
     const et = `${String(hour).padStart(2, '0')}:00`;
@@ -78,12 +113,12 @@ async function createItinerary(text: string): Promise<{ itinerary: NonNullable<C
     await saveItineraryItem({
       itinerary_id: itineraryId, place_id: p.placeId, stop_index: i, label: p.label,
       start_time: st, end_time: et, road_distance_meters: dist, duration_minutes: p.duration,
-      route_geometry: route?.geometry,
+      route_geometry: route?.geometry, day_number: day,
     });
-    stops.push({ label: p.label, placeId: p.placeId, startTime: st, endTime: et, lat: p.lat, lng: p.lng });
+    stops.push({ label: p.label, placeId: p.placeId, startTime: st, endTime: et, lat: p.lat, lng: p.lng, day, distance: dist });
   }
 
-  th.push(`Saved itinerary #${itineraryId} to database`);
+  th.push(`Saved itinerary #${itineraryId} to database (${days} day${days > 1 ? 's' : ''})`);
   return {
     itinerary: { id: itineraryId, stops },
     places: resolved.map(p => ({ id: p.placeId, name: p.label, lat: p.lat, lng: p.lng })),
@@ -119,7 +154,7 @@ async function addToItinerary(text: string, itineraryId: number): Promise<{ itin
   return {
     itinerary: {
       id: itineraryId,
-      stops: updatedStops.map((r: any) => ({ label: r.place_name, placeId: r.place_id, startTime: r.start_time || '', endTime: r.end_time || '', lat: r.lat, lng: r.lng })),
+      stops: updatedStops.map((r: any) => ({ label: r.place_name, placeId: r.place_id, startTime: r.start_time || '', endTime: r.end_time || '', lat: r.lat, lng: r.lng, day: r.day_number || 1, distance: r.road_distance_meters || 0 })),
     },
     places: updatedStops.map((r: any) => ({ id: r.place_id, name: r.place_name, lat: r.lat, lng: r.lng })),
     thinking: th,

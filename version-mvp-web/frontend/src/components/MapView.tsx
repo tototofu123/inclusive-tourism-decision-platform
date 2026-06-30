@@ -13,7 +13,7 @@ const KOWLOON_CENTER: [number, number] = [22.31, 114.17];
 export default function MapView({
   markers, routes, className,
 }: {
-  markers: { lat: number; lng: number; label: string; category?: string }[];
+  markers: { lat: number; lng: number; label: string; category?: string; day?: number }[];
   routes: { from: [number, number]; to: [number, number]; geometry?: any; distance: number }[];
   className?: string;
 }) {
@@ -42,14 +42,17 @@ export default function MapView({
 
     const bounds = L.latLngBounds([]);
 
-    markers.forEach((m, i) => {
+    markers.forEach((m) => {
       const color = COLORS[m.category || ''] || '#0070f3';
       const icon = L.divIcon({
         className: '',
-        html: `<div style="background:${color};color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,.3)">${i+1}</div>`,
+        html: `<div style="background:${color};color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,.3)">${m.day || ''}</div>`,
         iconSize: [28, 28], iconAnchor: [14, 14],
       });
-      bounds.extend(L.marker([m.lat, m.lng], { icon }).bindPopup(`<b>${m.label}</b>`).addTo(map).getLatLng());
+      const popup = m.day
+        ? `<b>${m.label}</b><br/><span style="color:#0070f3;font-size:.85rem">Day ${m.day}</span>`
+        : `<b>${m.label}</b>`;
+      bounds.extend(L.marker([m.lat, m.lng], { icon }).bindPopup(popup).addTo(map).getLatLng());
     });
 
     routes.forEach(r => {

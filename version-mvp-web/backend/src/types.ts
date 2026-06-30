@@ -7,7 +7,7 @@ export interface ChatResponse {
   places?: Place[];
   itinerary?: {
     id: number;
-    stops: Array<{ label: string; placeId: number; startTime: string; endTime: string; lat: number; lng: number }>;
+    stops: Array<{ label: string; placeId: number; startTime: string; endTime: string; lat: number; lng: number; day?: number; distance?: number }>;
   };
   allItineraries?: Array<{ id: number; user_text: string; created_at: string; stop_count: number }>;
 }
@@ -46,6 +46,7 @@ export interface ItineraryItemRow {
   lng?: number;
   category?: string;
   description?: string;
+  day_number?: number;
 }
 
 export interface LLMStop {

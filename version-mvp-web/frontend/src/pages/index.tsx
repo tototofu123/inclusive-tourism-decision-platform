@@ -19,6 +19,16 @@ interface ChatMsg {
 interface ItinerarySummary { id: number; user_text: string; created_at: string; stop_count: number }
 interface SessionSummary { id: number; title: string; created_at: string; updated_at: string; msg_count: number }
 
+interface ItineraryDetail {
+  itinerary: { id: number; user_text: string; created_at: string };
+  items: Array<{
+    id: number; stop_index: number; place_name: string; label?: string;
+    start_time: string; end_time: string; duration_minutes: number;
+    road_distance_meters: number; lat: number; lng: number; category: string;
+    day_number: number; description?: string;
+  }>;
+}
+
 export default function Home() {
   const [tab, setTab] = useState<Tab>('chat');
   const [input, setInput] = useState('');
@@ -27,17 +37,18 @@ export default function Home() {
   const [currentPlaces, setCurrentPlaces] = useState<any[]>([]);
   const [currentItineraryId, setCurrentItineraryId] = useState<number | undefined>();
   const [itineraries, setItineraries] = useState<ItinerarySummary[]>([]);
-
   const [sessionId, setSessionId] = useState<number | undefined>();
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [showSessions, setShowSessions] = useState(false);
   const [storedPlaces, setStoredPlaces] = useState<any[]>([]);
   const [placesTotal, setPlacesTotal] = useState(0);
+  const [detail, setDetail] = useState<ItineraryDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [dayFilter, setDayFilter] = useState<number | null>(null);
   const msgEnd = useRef<HTMLDivElement>(null);
 
   useEffect(() => { msgEnd.current?.scrollIntoView({ behavior: 'smooth' }) }, [msgs]);
 
-  // Load sessions on mount
   useEffect(() => {
     fetch(`${API}/sessions`).then(r => r.json()).then(setSessions).catch(() => {});
     fetch(`${API}/itineraries`).then(r => r.json()).then(d => setItineraries(d)).catch(() => {});
@@ -104,9 +115,24 @@ export default function Home() {
     setCurrentPlaces([]);
     setCurrentItineraryId(undefined);
     setShowSessions(false);
+    setDetail(null);
   }
 
-  function loadItinerary(id: number) { window.open(`/itinerary/${id}`, '_blank'); }
+  function showItinerary(id: number) {
+    setDetailLoading(true);
+    setDetail(null);
+    fetch(`${API}/itinerary/${id}`).then(r => r.json()).then(d => { setDetail(d); setDetailLoading(false); setTab('itinerary'); }).catch(() => setDetailLoading(false));
+  }
+
+  function fmtDist(m: number): string {
+    if (m >= 1000) return `${(m / 1000).toFixed(1)} km`;
+    return `${m} m`;
+  }
+
+  function daysFromItems(items: ItineraryDetail['items']): number[] {
+    const days = new Set(items.map(i => i.day_number || 1));
+    return Array.from(days).sort((a, b) => a - b);
+  }
 
   const suggestions = [
     'Plan a Kowloon trip with museum and cafe',
@@ -115,6 +141,10 @@ export default function Home() {
     'Add a temple to my itinerary',
     'How to get around Kowloon?',
   ];
+
+  const mapMarkers = tab === 'map' && dayFilter !== null
+    ? currentPlaces.filter(p => p.day === undefined || p.day === dayFilter)
+    : currentPlaces;
 
   return (
     <div className="app">
@@ -126,7 +156,6 @@ export default function Home() {
         {sessionId && <button onClick={newSession} style={{ background: 'rgba(255,255,255,.2)', border: '1px solid rgba(255,255,255,.4)', color: 'white', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: '.85rem', marginLeft: 6 }}>New</button>}
       </div>
 
-      {/* Session panel */}
       {showSessions && (
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,.15)', zIndex: 999, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: 60 }}
           onClick={() => setShowSessions(false)}>
@@ -174,8 +203,8 @@ export default function Home() {
                   </div>
                 )}
                 {m.itineraryId && (
-                  <div style={{ fontSize: '0.8rem', color: '#0070f3', marginTop: 4 }}>
-                    <a href={`/itinerary/${m.itineraryId}`} target="_blank" rel="noopener">View itinerary details →</a>
+                  <div className="view-itinerary-link" onClick={() => showItinerary(m.itineraryId!)}>
+                    View itinerary details →
                   </div>
                 )}
               </div>
@@ -188,11 +217,22 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Map Tab - always shows Kowloon */}
+        {/* Map Tab */}
         <div className={`tab-content map-tab ${tab === 'map' ? 'active' : ''}`}>
+          {detail && (() => {
+            const days = daysFromItems(detail.items);
+            return (
+              <div className="map-day-filters">
+                <button className={`map-day-btn ${dayFilter === null ? 'active' : ''}`} onClick={() => setDayFilter(null)}>All</button>
+                {days.map(d => (
+                  <button key={d} className={`map-day-btn ${dayFilter === d ? 'active' : ''}`} onClick={() => setDayFilter(d)}>Day {d}</button>
+                ))}
+              </div>
+            );
+          })()}
           <div className="map-full">
             <MapView
-              markers={currentPlaces.map((p: any, i: number) => ({ lat: p.lat, lng: p.lng, label: `${i+1}. ${p.name}`, category: p.category }))}
+              markers={mapMarkers.map((p: any, i: number) => ({ lat: p.lat, lng: p.lng, label: `${i+1}. ${p.name}${p.day ? ` (Day ${p.day})` : ''}`, category: p.category, day: p.day }))}
               routes={[]}
             />
           </div>
@@ -200,22 +240,68 @@ export default function Home() {
 
         {/* Itinerary Tab */}
         <div className={`tab-content itinerary-tab ${tab === 'itinerary' ? 'active' : ''}`}>
-          {itineraries.length === 0 && (
-            <div className="welcome"><h2>No itineraries yet</h2><p>Ask me to plan a trip and your saved itineraries will appear here.</p></div>
-          )}
-          {currentItineraryId && (
-            <div className="itin-card" onClick={() => loadItinerary(currentItineraryId)} style={{ borderColor: '#0070f3', background: '#f0f4ff' }}>
-              <div className="itin-title">Current Itinerary #{currentItineraryId}</div>
-              <div className="itin-meta">Active session</div>
+          {detailLoading && <div style={{ padding: 20, textAlign: 'center', color: '#888' }}>Loading itinerary...</div>}
+
+          {!detailLoading && detail && (
+            <div className="detail-view">
+              <div className="detail-header">
+                <h2>Itinerary #{detail.itinerary.id}</h2>
+                <div className="detail-meta">{detail.items.length} stops · {new Date(detail.itinerary.created_at).toLocaleString()}</div>
+                {detail.itinerary.user_text && <div className="detail-prompt">"{detail.itinerary.user_text}"</div>}
+                <button className="back-btn" onClick={() => setDetail(null)}>← Back to list</button>
+              </div>
+              {daysFromItems(detail.items).map(day => {
+                const dayItems = detail.items.filter(i => (i.day_number || 1) === day);
+                const dayDist = dayItems.reduce((s, i) => s + (i.road_distance_meters || 0), 0);
+                return (
+                  <div key={day} className="day-group">
+                    <div className="day-header">
+                      <span className="day-title">Day {day}</span>
+                      <span className="day-meta">{dayItems.length} stops · ~{fmtDist(dayDist)} walking</span>
+                    </div>
+                    {dayItems.map((item, i) => (
+                      <div key={item.id} className="stop-card">
+                        <div className="stop-left">
+                          <div className="stop-num">{item.stop_index + 1}</div>
+                        </div>
+                        <div className="stop-body">
+                          <div className="stop-name">{item.place_name}</div>
+                          <div className="stop-times">{item.start_time || '?'} – {item.end_time || '?'} · ~{item.duration_minutes} min</div>
+                          {item.category && <div className="stop-cat">{item.category.replace('_', ' ')}</div>}
+                          {i > 0 && item.road_distance_meters > 0 && (
+                            <div className="stop-walk">🚶 {fmtDist(item.road_distance_meters)} from previous</div>
+                          )}
+                          <button className="stop-map-btn" onClick={() => { setCurrentPlaces([{ name: item.place_name, lat: item.lat, lng: item.lng, category: item.category, day: item.day_number || 1 }]); setTab('map'); }}>Show on map</button>
+                        </div>
+                      </div>
+                    ))}
+                    <div className="day-total">Day {day} total: ~{dayItems.reduce((s, i) => s + i.duration_minutes, 0)} min · {fmtDist(dayDist)} walking</div>
+                  </div>
+                );
+              })}
             </div>
           )}
-          {itineraries.map(itin => (
-            <div key={itin.id} className="itin-card" onClick={() => loadItinerary(itin.id)}>
-              <div className="itin-title">Itinerary #{itin.id}</div>
-              <div className="itin-preview">{itin.user_text || 'No description'}</div>
-              <div className="itin-meta">{itin.stop_count} stops · {new Date(itin.created_at).toLocaleString()}</div>
-            </div>
-          ))}
+
+          {!detailLoading && !detail && (
+            <>
+              {itineraries.length === 0 && (
+                <div className="welcome"><h2>No itineraries yet</h2><p>Ask me to plan a trip and your saved itineraries will appear here.</p></div>
+              )}
+              {currentItineraryId && itineraries.find(i => i.id === currentItineraryId) && (
+                <div className="itin-card active" onClick={() => showItinerary(currentItineraryId!)}>
+                  <div className="itin-title">Current Itinerary #{currentItineraryId}</div>
+                  <div className="itin-meta">Active session</div>
+                </div>
+              )}
+              {itineraries.map(itin => (
+                <div key={itin.id} className="itin-card" onClick={() => showItinerary(itin.id)}>
+                  <div className="itin-title">Itinerary #{itin.id}</div>
+                  <div className="itin-preview">{itin.user_text || 'No description'}</div>
+                  <div className="itin-meta">{itin.stop_count} stops · {new Date(itin.created_at).toLocaleString()}</div>
+                </div>
+              ))}
+            </>
+          )}
         </div>
 
         {/* Places Tab */}

@@ -45,15 +45,16 @@ export async function saveItinerary(userText: string, region: string): Promise<n
 export async function saveItineraryItem(item: {
   itinerary_id: number; place_id: number; stop_index: number; label?: string;
   start_time?: string; end_time?: string; road_distance_meters?: number;
-  duration_minutes?: number; route_geometry?: any
+  duration_minutes?: number; route_geometry?: any; day_number?: number
 }) {
   await query(
-    `INSERT INTO itinerary_items (itinerary_id, place_id, stop_index, label, start_time, end_time, road_distance_meters, duration_minutes, route_geometry_json)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+    `INSERT INTO itinerary_items (itinerary_id, place_id, stop_index, label, start_time, end_time, road_distance_meters, duration_minutes, route_geometry_json, day_number)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
     [item.itinerary_id, item.place_id, item.stop_index, item.label || null,
      item.start_time || null, item.end_time || null,
      item.road_distance_meters || 0, item.duration_minutes || 60,
-     item.route_geometry ? JSON.stringify(item.route_geometry) : null]
+     item.route_geometry ? JSON.stringify(item.route_geometry) : null,
+     item.day_number || 1]
   );
 }
 
