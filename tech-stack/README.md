@@ -8,7 +8,7 @@ This document covers every technology, service, and library used across all five
 
 The fundamental design principle is **progressive infrastructure**: start local, prove the idea, then migrate to cloud without rewriting. Every technology choice serves one of three goals:
 
-1. **Proving the concept quickly** — hackathon-safe, runnable on a laptop, no API keys needed on day one.
+1. **Proving the concept quickly** — hackathon-safe, runnable on a laptop, zero config, no API keys needed on day one.
 2. **Delivering real AI quality** — accessibility-aware planning requires semantics, reasoning, and retrieval, not just keyword matching.
 3. **Scaling to production** — Google Cloud's managed services can take the same codebase from a demo running on one machine to a service handling thousands of concurrent travellers across Hong Kong.
 
@@ -33,15 +33,15 @@ The fundamental design principle is **progressive infrastructure**: start local,
 ### Vertex AI Vector Search
 - **What it is**: A managed, high-performance approximate nearest neighbour (ANN) search service for dense vector embeddings.
 - **Why chosen**: Semantic search over a large corpus of Hong Kong places (descriptions, accessibility reports, user reviews) cannot be done with keyword matching alone. Vector search retrieves semantically relevant candidates that a keyword search would miss (e.g. "quiet courtyard garden" matching a historic temple with benches).
-- **First appears in**: Web v2 (replaces local pgvector).
+- **First appears in**: Web v2 (replaces in-process SQLite vector search from Web v1).
 - **Role in the system**: The RAG pipeline embeds the user query and preference context using a text-embedding model, then queries Vector Search to retrieve the top-K most relevant candidate places. These candidates are passed to the Planning Agent as context.
 - **Scalability**: Vector Search is designed for billions of vectors with millisecond latency. As the place corpus grows from hundreds to millions of entries (e.g. user-submitted reports, government data), Vector Search scales without schema changes.
 
 ### AlloyDB for PostgreSQL
 - **What it is**: A Google Cloud-managed, PostgreSQL-compatible database with built-in ML features including vector similarity search (pgvector-compatible) and columnar storage for analytics.
 - **Why chosen**: The platform needs a relational database for core entities (places, itineraries, users, merchant profiles) and a vector store for embeddings. AlloyDB combines both in one managed service, eliminating the need to run separate Postgres + pgvector instances in production.
-- **First appears in**: Web v2.
-- **Role in the system**: Stores canonical place records (name, location, accessibility attributes, opening hours), itinerary records, and optionally vector embeddings. AlloyDB's ML integration means the application can query `SELECT ... ORDER BY embedding <=> $1 LIMIT 10` natively.
+- **First appears in**: Web v2 (replaces SQLite from MVP/Web v1).
+- **Role in the system**: Stores canonical place records (name, location, accessibility attributes, opening hours), itinerary records, and vector embeddings. AlloyDB's ML integration means the application can query `SELECT ... ORDER BY embedding <=> $1 LIMIT 10` natively.
 - **Scalability**: AlloyDB is fully managed with read replicas, automatic failover, and horizontal read scaling. Storage scales independently of compute.
 
 ### BigQuery
@@ -92,16 +92,18 @@ The fundamental design principle is **progressive infrastructure**: start local,
 
 ### llama.cpp
 - **What it is**: A C++ inference runtime for GGUF-format quantised LLM models. Supports CPU and CUDA/Metal/Vulkan GPU acceleration.
-- **Why chosen**: Enables fully local LLM inference without any API dependency. Critical for the MVP and Web v1 where the goal is a self-contained demo. Also provides a fallback path in Web v2 when cloud services are unavailable.
+- **Why chosen**: Enables fully local LLM inference without any API dependency. Critical for the MVP and Web v1 where the goal is a self-contained demo. Also provides a fallback path in Web v2+ when cloud services are unavailable.
 - **Models used**: A 7B or 13B parameter instruction-following model (e.g. Llama 3 Instruct or Mistral Instruct) in GGUF Q4 or Q5 quantisation.
-- **Role in the system**: Responds to structured planning prompts from the backend's `llmGateway` service. The backend calls llama.cpp's HTTP server endpoint, which is functionally similar to the OpenAI Chat Completions API.
-- **Versions**: MVP, Web v1 (primary); Web v2, App v3, App Final (fallback).
+- **Role in the system**: Responds to structured planning prompts from the backend's `llmGateway` service. The backend calls llama.cpp's HTTP server endpoint (`/v1/chat/completions`), which is functionally compatible with the OpenAI Chat Completions API — so swapping to Gemini later requires changing only the endpoint URL and auth header.
+- **Versions**: MVP, Web v1 (primary); Web v2, App v3, App Final (fallback / offline mode).
 
-### PostgreSQL + pgvector
-- **What it is**: The world's most advanced open-source relational database, extended with the pgvector extension for storing and querying vector embeddings.
-- **Why chosen**: A single Postgres instance with pgvector covers all MVP and Web v1 data needs: relational entity storage plus vector similarity search, without running a separate vector database.
-- **Role in the system**: Stores places, itineraries, itinerary items, and (from Web v1 onwards) place embeddings. The RAG query runs as a SQL query using the `<=>` cosine distance operator.
-- **Versions**: MVP (relational only), Web v1 (relational + vectors), Web v2 onwards (replaced or mirrored by AlloyDB).
+### SQLite
+- **What it is**: A self-contained, serverless, zero-configuration relational database stored in a single file. The world's most widely deployed database engine.
+- **Why chosen for MVP and Web v1**: SQLite requires no installation, no server process, and no connection configuration. It is embedded directly in the Node.js backend via the `better-sqlite3` driver. For a hackathon demo or local prototype, this means the entire backend — server, LLM, and database — runs from a single machine with one `npm start` command.
+- **Migration path**: The SQL schema is written in standard SQL (no Postgres-specific types). When the project moves to Web v2, the same schema is applied to AlloyDB with minimal changes. The application-level DB abstraction layer (`src/db/index.ts`) is the only file that changes.
+- **Limitations acknowledged**: SQLite does not support pgvector. In MVP, candidate places for the RAG pipeline are retrieved using a simple keyword filter + cosine similarity computed in Node.js over a small in-memory embedding array. This is sufficient for a few hundred seeded places.
+- **Role in the system**: Stores places, user preferences, itineraries, and itinerary items.
+- **Versions**: MVP, Web v1. Replaced by AlloyDB in Web v2.
 
 ### OpenRouteService
 - **What it is**: An open-source routing engine based on OpenStreetMap data, with a free-tier hosted API.
@@ -133,10 +135,13 @@ Every component has a single responsibility and communicates through defined API
 
 ### Local-to-Cloud Migration Path
 The stack is designed in layers that can be swapped without full rewrites:
-- PostgreSQL + pgvector → AlloyDB (compatible API, add managed scaling)
-- llama.cpp → Vertex AI Gemini (swap in AI gateway; same JSON output contract)
-- OpenRouteService → Google Maps Directions API (same GeoJSON output format)
-- Local embeddings → Vertex AI Embeddings + Vector Search (same similarity-search interface)
+
+| MVP / Web v1 (Local) | Web v2+ (Cloud) | What stays the same |
+|---|---|---|
+| SQLite (`better-sqlite3`) | AlloyDB for PostgreSQL | SQL schema, query patterns |
+| llama.cpp HTTP server | Vertex AI Gemini API | JSON prompt/response contract |
+| OpenRouteService | Google Maps Directions API | GeoJSON route output format |
+| In-process cosine similarity | Vertex AI Vector Search | Top-K candidate interface |
 
 This means the MVP is not a throwaway prototype — it is a working, local version of the production architecture.
 
