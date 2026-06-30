@@ -58,28 +58,75 @@ function parseLLMResponse(content: string): LLMResponse {
   };
 }
 
+const ALL_STOPS: LLMResponse['stops'] = [
+  { label: 'Hong Kong Museum of History', category: 'museum', approx_duration_minutes: 90, notes: 'Tsim Sha Tsui East — full wheelchair access, free entry' },
+  { label: 'Kowloon Park', category: 'park', approx_duration_minutes: 60, notes: 'Aviary, sculpture walk, accessible paths' },
+  { label: 'TST Promenade', category: 'viewpoint', approx_duration_minutes: 40, notes: 'Harbour view, photo spots, benches' },
+  { label: 'Hong Kong Space Museum', category: 'museum', approx_duration_minutes: 75, notes: 'Planetarium, wheelchair spaces' },
+  { label: 'Harbour City', category: 'shopping_mall', approx_duration_minutes: 90, notes: 'Canton Road, step-free, accessible toilets' },
+  { label: 'Wong Tai Sin Temple', category: 'temple', approx_duration_minutes: 60, notes: 'Famous Taoist temple, ramp access' },
+  { label: 'Hong Kong Cultural Centre', category: 'art_gallery', approx_duration_minutes: 60, notes: 'Exhibitions, concerts, waterfront location' },
+  { label: 'TST Cafe', category: 'cafe', approx_duration_minutes: 45, notes: 'Near waterfront, outdoor seating' },
+  { label: 'Temple Street Night Market', category: 'market', approx_duration_minutes: 60, notes: 'Evening market, flat road surface' },
+  { label: 'Chi Lin Nunnery', category: 'temple', approx_duration_minutes: 60, notes: 'Tang-style architecture, accessible grounds' },
+  { label: 'Nan Lian Garden', category: 'park', approx_duration_minutes: 50, notes: 'Classical Chinese garden, flat paved paths' },
+  { label: 'M+ Museum', category: 'museum', approx_duration_minutes: 120, notes: 'West Kowloon, modern art, fully accessible' },
+  { label: 'Sky100 Observation Deck', category: 'viewpoint', approx_duration_minutes: 60, notes: '360 views from ICC, wheelchair accessible' },
+  { label: 'Elements Mall', category: 'shopping_mall', approx_duration_minutes: 75, notes: 'Kowloon Station, luxury shopping, accessible' },
+  { label: 'Jade Market', category: 'market', approx_duration_minutes: 45, notes: 'Yau Ma Tei, souvenir shopping' },
+  { label: 'Kowloon Walled City Park', category: 'park', approx_duration_minutes: 60, notes: 'Historic site, gardens, pavilions' },
+  { label: 'Hong Kong Museum of Art', category: 'art_gallery', approx_duration_minutes: 90, notes: 'TST, Chinese art, accessible' },
+  { label: 'Avenue of Stars', category: 'viewpoint', approx_duration_minutes: 40, notes: 'TST waterfront, handprints, harbour view' },
+];
+
 export function getFallbackPlan(userText: string): LLMResponse {
   const t = userText.toLowerCase();
-  const stops: LLMResponse['stops'] = [];
-  if (t.includes('museum') || t.includes('history') || t.includes('culture'))
-    stops.push({ label: 'Hong Kong Museum of History', category: 'museum', approx_duration_minutes: 90, notes: 'Tsim Sha Tsui East' });
-  if (t.includes('cafe') || t.includes('food') || t.includes('eat') || t.includes('restaurant'))
-    stops.push({ label: 'TST Cafe', category: 'cafe', approx_duration_minutes: 45, notes: 'Near the waterfront' });
-  if (t.includes('park') || t.includes('nature') || t.includes('garden'))
-    stops.push({ label: 'Kowloon Park', category: 'park', approx_duration_minutes: 60, notes: 'Aviary and sculpture walk' });
-  if (t.includes('shopping') || t.includes('mall') || t.includes('market'))
-    stops.push({ label: 'Harbour City', category: 'shopping_mall', approx_duration_minutes: 90, notes: 'Canton Road' });
-  if (t.includes('temple'))
-    stops.push({ label: 'Wong Tai Sin Temple', category: 'temple', approx_duration_minutes: 60, notes: 'Famous Taoist temple' });
-  if (t.includes('view') || t.includes('harbour'))
-    stops.push({ label: 'TST Promenade', category: 'viewpoint', approx_duration_minutes: 30, notes: 'Harbour view' });
-  if (t.includes('art') || t.includes('gallery'))
-    stops.push({ label: 'HK Cultural Centre', category: 'art_gallery', approx_duration_minutes: 60, notes: 'Exhibitions' });
-  if (stops.length === 0)
-    stops.push(
-      { label: 'Kowloon Park', category: 'park', approx_duration_minutes: 60, notes: 'Green space' },
-      { label: 'HK Museum of History', category: 'museum', approx_duration_minutes: 90, notes: 'TST East' },
-      { label: 'TST Promenade', category: 'viewpoint', approx_duration_minutes: 30, notes: 'Evening view' }
-    );
-  return { stops, total_duration_minutes: stops.reduce((s, x) => s + x.approx_duration_minutes, 0), ordering_hint: 'Start from TST MTR' };
+
+  const dayMatch = t.match(/(\d+)\s*day|\b(\w+)\s*day/);
+  let days = 1;
+  if (dayMatch) {
+    const num = parseInt(dayMatch[1] || dayMatch[2]);
+    if (!isNaN(num)) days = Math.min(Math.max(num, 1), 5);
+    else if (dayMatch[0].includes('three') || dayMatch[0].includes('3')) days = 3;
+  }
+  if (t.includes('multi') || t.includes('week')) days = 5;
+  if (t.includes('few days') || t.includes('couple')) days = 2;
+
+  const stopsPerDay = 3;
+  const totalStops = days * stopsPerDay;
+
+  const picked: LLMResponse['stops'] = [];
+  const used = new Set<number>();
+
+  const priority: Array<{ kw: string; idx: number }> = [
+    { kw: 'museum', idx: 0 }, { kw: 'history', idx: 0 }, { kw: 'culture', idx: 0 },
+    { kw: 'park', idx: 1 }, { kw: 'nature', idx: 1 }, { kw: 'garden', idx: 1 },
+    { kw: 'cafe', idx: 7 }, { kw: 'food', idx: 7 }, { kw: 'eat', idx: 7 },
+    { kw: 'shopping', idx: 4 }, { kw: 'mall', idx: 4 }, { kw: 'market', idx: 8 },
+    { kw: 'temple', idx: 5 },
+    { kw: 'view', idx: 2 }, { kw: 'harbour', idx: 2 },
+    { kw: 'art', idx: 16 }, { kw: 'gallery', idx: 16 },
+  ];
+
+  for (const p of priority) {
+    if (t.includes(p.kw) && !used.has(p.idx)) {
+      picked.push(ALL_STOPS[p.idx]);
+      used.add(p.idx);
+    }
+  }
+
+  if (picked.length < totalStops) {
+    for (let i = 0; i < ALL_STOPS.length && picked.length < totalStops; i++) {
+      if (!used.has(i)) {
+        picked.push(ALL_STOPS[i]);
+        used.add(i);
+      }
+    }
+  }
+
+  return {
+    stops: picked,
+    total_duration_minutes: picked.reduce((s, x) => s + x.approx_duration_minutes, 0),
+    ordering_hint: days > 1 ? `Day 1: TST area · Day 2: West Kowloon · Day 3: Yau Ma Tei/Mong Kok` : 'Start from TST MTR',
+  };
 }

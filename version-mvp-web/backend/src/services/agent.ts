@@ -1,5 +1,5 @@
 import { ChatResponse, Intent, LLMStop } from '../types';
-import { getFallbackPlan } from './llmGateway';
+import { planTrip } from './llmGateway';
 import { resolveStops } from './placeResolver';
 import { getRoute } from './routingService';
 import { saveItinerary, saveItineraryItem, savePlace, query } from '../db/client';
@@ -46,13 +46,16 @@ async function findPlaces(query_text: string): Promise<{ places: ChatResponse['p
 }
 
 async function createItinerary(text: string): Promise<{ itinerary: NonNullable<ChatResponse['itinerary']>; places: ChatResponse['places']; thinking: string[] }> {
-  const th: string[] = ['Detected intent: create a new itinerary for Kowloon', 'Generating suggested stops based on your interests...', 'Looking up real places in Kowloon...'];
-
-  const llmPlan = getFallbackPlan(text);
-  th.push(`Planned ${llmPlan.stops.length} stops for your trip`);
+  const llmPlan = await planTrip(text);
+  const categories = [...new Set(llmPlan.stops.map(s => s.category))];
+  const th: string[] = [
+    `Planning a Kowloon trip based on: "${text}"`,
+    `Searching for places: ${categories.join(', ')}`,
+  ];
 
   const resolved = await resolveStops(llmPlan.stops);
-  th.push(`Found ${resolved.length} real places in Kowloon`);
+  th.push(`Found ${resolved.length} accessible places for your trip`);
+  th.push(`Estimated total time: ${llmPlan.total_duration_minutes} min`);
 
   const itineraryId = await saveItinerary(text, 'Kowloon');
   const stops: Array<{ label: string; placeId: number; startTime: string; endTime: string; lat: number; lng: number }> = [];
