@@ -56,6 +56,7 @@ export default function Home() {
       <div className="w-full max-w-lg">
         {/* Header */}
         <div className="text-center mb-8">
+          <div className="text-5xl mb-3">♿🗺️</div>
           <h1 className="text-2xl font-bold text-gray-900">Inclusive Tourism HK</h1>
           <p className="text-gray-500 mt-1">Accessible itinerary planner · MVP</p>
         </div>
@@ -126,7 +127,7 @@ export default function Home() {
         </div>
 
         <p className="text-center text-xs text-gray-400 mt-4">
-          Running locally · PostgreSQL + pgvector · No data sent to cloud
+          Running locally · llama.cpp + SQLite · No data sent to cloud
         </p>
       </div>
     </div>
