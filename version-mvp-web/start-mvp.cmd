@@ -5,17 +5,18 @@ echo === Inclusive Tourism MVP ===
 echo.
 
 :: 1. LLM (llama.cpp)
-set LLAMA_DIR=%USERPROFILE%\llama-b9247-bin-win-cuda-12.4-x64
+set LLAMA_MODELS_DIR=%USERPROFILE%\.llama\models
 set MODEL_FILE=
-if exist "%LLAMA_DIR%\models\*.gguf" (for %%f in ("%LLAMA_DIR%\models\*.gguf") do set MODEL_FILE=%%f)
-if "%MODEL_FILE%"=="" if exist "%LLAMA_DIR%\*.gguf" (for %%f in ("%LLAMA_DIR%\*.gguf") do set MODEL_FILE=%%f)
-if exist "%LLAMA_DIR%\llama-server.exe" (
+if exist "%LLAMA_MODELS_DIR%\*.gguf" (for %%f in ("%LLAMA_MODELS_DIR%\*.gguf") do set MODEL_FILE=%%f)
+set LLAMA_EXE=%USERPROFILE%\llama-b9247-bin-win-cuda-12.4-x64\llama-server.exe
+if not exist "%LLAMA_EXE%" set LLAMA_EXE=C:\Users\totot\AppData\Local\Microsoft\WinGet\Packages\ggml.llamacpp_Microsoft.Winget.Source_8wekyb3d8bbwe\llama-server.exe
+if exist "%LLAMA_EXE%" (
   if not "%MODEL_FILE%"=="" (
-    echo [1/3] Starting llama.cpp on port 8080...
-    start "LLM" cmd /c ""%LLAMA_DIR%\llama-server.exe" -m "%MODEL_FILE%" --port 8080 -ngl 99"
+    echo [1/3] Starting llama.cpp on port 8081...
+    start "LLM" cmd /c ""%LLAMA_EXE%" -m "%MODEL_FILE%" --port 8081 -ngl 99"
     timeout /t 8 /nobreak >nul
   ) else (
-    echo [SKIP] LLM: No .gguf model found in %LLAMA_DIR%
+    echo [SKIP] LLM: No .gguf model found in %LLAMA_MODELS_DIR%
   )
 ) else (
   echo [SKIP] LLM: llama-server.exe not found
