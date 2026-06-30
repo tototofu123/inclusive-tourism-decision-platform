@@ -16,7 +16,7 @@ function detectIntent(text: string): Intent {
 }
 
 function generateThinking(steps: string[]): string[] {
-  return ['🤔 Analyzing your request...', ...steps.map((s, i) => `Step ${i + 1}: ${s}`), '✅ Done!'];
+  return ['[think] Analyzing your request...', ...steps.map((s, i) => `  ${i + 1}. ${s}`), '[done] Ready!'];
 }
 
 async function findPlaces(query_text: string): Promise<{ places: ChatResponse['places']; thinking: string[] }> {

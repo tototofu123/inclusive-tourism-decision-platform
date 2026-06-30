@@ -25,7 +25,7 @@ echo.
 
 :: 2. Backend
 echo [2/3] Starting backend (port 4000)...
->nul 2>&1 powershell -c "netstat -ano | findstr ':4000' | findstr LISTEN | %%{ $_.Trim().Split()[-1] } | %%{ Stop-Process -Id $_ -Force }"
+>nul 2>&1 powershell -noprofile -c "$p=netstat -ano|findstr ':4000'|findstr LISTEN; if($p){$pid=(-1split$p)[-1];Write-Output 'Killing PID:'+$pid;Stop-Process -Id $pid -Force}"
 timeout /t 2 /nobreak >nul
 cd /d backend
 if not exist ".env" copy .env.example .env >nul
