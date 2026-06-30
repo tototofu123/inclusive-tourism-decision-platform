@@ -127,7 +127,7 @@ export default function Home() {
         </div>
 
         <p className="text-center text-xs text-gray-400 mt-4">
-          Running locally · llama.cpp + SQLite · No data sent to cloud
+          Running locally · PostgreSQL + pgvector · No data sent to cloud
         </p>
       </div>
     </div>

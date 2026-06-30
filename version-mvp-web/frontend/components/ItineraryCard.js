@@ -1,13 +1,19 @@
-// Renders a single stop in the itinerary
+function transitIcon(text) {
+  if (!text) return '🚇';
+  const t = text.toLowerCase();
+  if (t.includes('walk')) return '🚶';
+  if (t.includes('mtr') || t.includes('train') || t.includes('subway')) return '🚇';
+  if (t.includes('bus')) return '🚌';
+  if (t.includes('end')) return '🏁';
+  return '🚇';
+}
+
 export default function ItineraryCard({ stop, isLast }) {
   return (
     <div className="relative pl-8">
-      {/* Timeline line */}
       {!isLast && (
         <div className="absolute left-3 top-8 bottom-0 w-0.5 bg-green-200" />
       )}
-
-      {/* Timeline dot */}
       <div className="absolute left-1.5 top-1.5 w-3 h-3 rounded-full bg-green-500 ring-2 ring-white" />
 
       <div className="card mb-4">
@@ -39,8 +45,11 @@ export default function ItineraryCard({ stop, isLast }) {
 
         {stop.transit_to_next && !isLast && (
           <div className="flex items-center gap-1.5 mt-2 text-xs text-gray-500">
-            <span>🚇</span>
+            <span>{transitIcon(stop.transit_to_next)}</span>
             <span>{stop.transit_to_next}</span>
+            {stop.transit_minutes > 0 && (
+              <span className="text-gray-400">· {stop.transit_minutes} min</span>
+            )}
           </div>
         )}
       </div>
