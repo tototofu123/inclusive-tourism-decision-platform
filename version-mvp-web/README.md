@@ -1,55 +1,129 @@
-# Web MVP Version
+# Version MVP Web — Local AI + SQLite
 
-This folder contains the specifications for the initial web MVP.
+The first runnable version. No cloud keys. Runs entirely on your machine using **llama.cpp** for AI and **SQLite** for data.
 
-## Guide
-- Scope: Chat → local LLM → JSON itinerary → road-routed map → stored in DB (Kowloon only).
-- No login, no accessibility tags yet.
+## Prerequisites
 
-## Agent
-- Primary agent: Planning agent that converts user text into structured itinerary JSON.
-- Runs on llama.cpp locally during development.
+- Node.js 18+
+- A running [llama.cpp](https://github.com/ggerganov/llama.cpp) server (see below)
+- Any GGUF model (e.g. Mistral 7B, LLaMA 3.1 8B)
 
-## Flow
-- User types trip description in web chat.
-- Backend calls local LLM with prompt template.
-- LLM returns human-readable explanation + itinerary JSON.
-- Backend enriches itinerary with real routes via OpenRouteService.
-- Backend stores places + itinerary in PostgreSQL.
-- Frontend renders itinerary list + interactive map.
+---
 
-## Files Needed
-- Frontend: Next.js + React pages and components for chat and itinerary view.
-- Backend: Node.js + TypeScript API service with endpoints `/plan` and `/itinerary/:id`.
-- DB: PostgreSQL schema for `places`, `itineraries`, `itinerary_items`.
-- LLM: llama.cpp server config and prompt templates.
+## 1. Start llama.cpp server
 
-## Architecture
-- Web UI (Next.js/React) → Backend API (Node/TS) → Local LLM (llama.cpp) → Routing API (OpenRouteService) → PostgreSQL.
+```bash
+# Download a model (example: Mistral 7B Q4)
+wget https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/resolve/main/mistral-7b-instruct-v0.2.Q4_K_M.gguf
 
-## Frontend
-- `pages/chat.tsx` – chat interface.
-- `pages/itinerary/[id].tsx` – itinerary + map view.
-- Components for message bubbles, itinerary cards, map wrapper.
+# Start server (OpenAI-compatible on port 8080)
+./llama-server -m mistral-7b-instruct-v0.2.Q4_K_M.gguf -c 4096 --port 8080 -ngl 35
+# -ngl 35 = offload 35 layers to GPU (remove if no GPU)
+```
 
-## Backend
-- `src/routes/plan.ts` – handles planning requests.
-- `src/routes/itinerary.ts` – fetches itinerary by id.
-- `src/services/llmGateway.ts` – calls llama.cpp.
-- `src/services/routing.ts` – calls OpenRouteService.
+---
 
-## Database
-- SQL migrations for `places`, `itineraries`, `itinerary_items`.
-- Optional `places_embeddings` for future RAG.
+## 2. Start Backend
 
-## API
-- `POST /plan` – body: `{ text: string }` → returns itinerary JSON + id.
-- `GET /itinerary/:id` – returns stored itinerary.
+```bash
+cd version-mvp-web/backend
 
-## Assets
-- Diagrams for MVP architecture (to be added later).
+# Install dependencies
+npm install
 
-## Components
-- Chat UI components.
-- Itinerary and place card components.
-- Map component using Leaflet/MapLibre.
+# Copy env file
+cp .env.example .env
+# Edit .env if your llama.cpp runs on a different port
+
+# Seed the database with 10 HK accessible spots
+npm run seed
+
+# Start backend (port 3001)
+npm run dev
+```
+
+You should see:
+```
+🚀 MVP Backend running at http://localhost:3001
+   llama.cpp endpoint: http://localhost:8080
+   DB: ./db/mvp.sqlite
+```
+
+---
+
+## 3. Start Frontend
+
+```bash
+cd version-mvp-web/frontend
+
+# Install dependencies
+npm install
+
+# Copy env file
+cp .env.local.example .env.local
+
+# Start frontend (port 3000)
+npm run dev
+```
+
+Open **http://localhost:3000**
+
+---
+
+## How it works
+
+```
+Browser (Next.js :3000)
+  └─ POST /api/itinerary
+        └─ Express backend (:3001)
+              ├─ Loads user profile from SQLite
+              ├─ Queries accessible places from SQLite  
+              └─ Sends prompt → llama.cpp (:8080)
+                    └─ Returns JSON itinerary plan
+```
+
+## API Endpoints
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| GET | `/health` | Backend health check |
+| GET | `/api/places` | List places (filter: `district`, `mobility`, `min_score`) |
+| GET | `/api/places/:id` | Get single place |
+| POST | `/api/profile` | Create/update user profile |
+| GET | `/api/profile/:session_id` | Get profile |
+| POST | `/api/itinerary` | Generate itinerary (calls llama.cpp) |
+| GET | `/api/itinerary/:id` | Get saved itinerary |
+
+## Project Structure
+
+```
+backend/
+  server.js              ← Express entry point
+  agent/planningAgent.js ← llama.cpp prompt builder + caller
+  db/
+    schema.sql           ← SQLite schema
+    seed.js              ← 10 seeded HK accessible spots
+    database.js          ← DB singleton
+  routes/
+    itinerary.js
+    places.js
+    profile.js
+
+frontend/
+  pages/
+    index.js             ← Profile setup
+    plan.js              ← Chat + itinerary display
+  components/
+    ChatInput.js
+    ItineraryCard.js
+    AccessibilityBadge.js
+```
+
+---
+
+## Migrating to Web v1 (Gemini + AlloyDB)
+
+This MVP is designed so migration is a single file swap:
+- Replace `backend/agent/planningAgent.js` → swap `callLlama()` for `callGemini()`  
+- Replace `backend/db/database.js` → swap SQLite for AlloyDB/Postgres connection
+- All routes stay identical — zero frontend changes needed
