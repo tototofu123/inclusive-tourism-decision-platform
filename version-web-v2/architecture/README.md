@@ -1,57 +1,50 @@
-# Architecture – Web v2
+# Architecture — Web v2
 
-This document expands the Web v2 architecture in detail.
+## Request Flow
 
-## Intent
-Web v2 is the "cloud-first" web version. It keeps the same user-facing behaviours as Web v1 but moves most of the intelligence from local services to Google Cloud, while preserving a local fallback path.
+```
+Browser
+  │
+  │  POST /api/itinerary  { userQuery, userProfile, location, durationHours }
+  ▼
+Next.js API Route  (unchanged from v1)
+  │
+  ▼
+Express Backend  :4000
+  │
+  └→ cloudAiGateway.generateItinerary()
+       │
+       ├─ [VERTEX_AI_ENABLED=true]
+       │    │
+       │    ├→ adkAgents.runAdkPipeline()
+       │    │    ├→ Agent 1: PlaceSelector
+       │    │    │    └→ cloudRag.queryCandidatePlaces()  ←─ Vertex AI Vector Search
+       │    │    │    └→ Gemini re-rank + select
+       │    │    ├→ Agent 2: RoutePlanner
+       │    │    │    └→ mapsDirections.getDirections()  ←─ Google Maps Directions API
+       │    │    └→ Agent 3: CityInsight
+       │    │         └→ Gemini enrich with accessibility notes
+       │    │
+       │    └→ [on any error] → localFallback()
+       │
+       ├─ [VERTEX_AI_ENABLED=false]
+       │    └→ localFallback()  ←─ llama.cpp + SQLite (v1 code)
+       │
+       └→ bigqueryLogger.logEvent()  ← fire-and-forget, never blocks
+```
 
-## Components
+## Service Ports
 
-### Frontend (Next.js + React)
-- Reuses Web v1 UI (chat, itinerary, preferences).
-- May add subtle indicators for "cloud-powered" features (e.g. a badge when Vertex AI is used).
+| Service | Port | Start Command |
+|---|---|---|
+| Frontend (Next.js) | 3000 | `npm run dev` in `frontend/` |
+| Backend (Express) | 4000 | `npm run dev` in `backend/` |
+| AI Gateway | embedded in backend | — |
 
-### Backend API (Node.js + TypeScript)
-- Continues to expose `POST /plan` and `GET /itinerary/:id`.
-- Adds a **cloud AI gateway** layer that decides whether to call cloud agents or fall back to local llama.cpp.
-- Adds **cloud RAG service** that talks to Vertex AI Vector Search or AlloyDB.
+## Scalability Notes
 
-### Google Cloud – AI and Data
-- **Vertex AI + Gemini**: primary LLM for planning itineraries when cloud is available.
-- **Agent Development Kit (ADK)**: defines and orchestrates agents such as Route Planner, Place Selector, City Insight.
-- **Vertex AI Vector Search / AlloyDB**: host embeddings and support semantic search over a larger HK place corpus.
-- **BigQuery**: stores anonymised analytics (e.g. popular routes, frequently rejected suggestions) for later insights.
-
-### Routing
-- **Google Maps Directions API**:
-  - Provides road-aware routes, travel times, and possibly transit suggestions.
-  - Replaces or augments OpenRouteService.
-
-### Storage
-- **PostgreSQL / AlloyDB**:
-  - Store core entities: places, itineraries, itinerary items.
-  - AlloyDB may be introduced as managed Postgres in Google Cloud.
-
-## Data Flow (Cloud Path)
-1. Frontend sends `POST /plan` with text + preferences.
-2. Backend's AI gateway:
-   - Calls cloud RAG to retrieve candidate places from Vector Search.
-   - Sends text, preferences, and candidate places to ADK-defined agents.
-3. Cloud agents (Vertex AI + ADK) return a planned itinerary and recommended places.
-4. Backend calls Google Maps Directions API to obtain routes and travel times.
-5. Backend writes data into PostgreSQL/AlloyDB.
-6. Backend returns itinerary data to frontend; frontend renders list + map.
-
-## Fallback Path
-If cloud services fail (rate limit, network issues):
-- AI gateway falls back to Web v1 local path:
-  - Local RAG over pgvector.
-  - Local llama.cpp Planning Agent.
-  - OpenRouteService for routing.
-
-## Design Rationale
-- Aligns architecture with hackathon's Google Cloud requirements (Vertex AI, ADK, BigQuery, etc.).
-- Keeps local tools in place as a safety net so development remains robust even when cloud is unstable.
-- Uses AI gateway abstraction to avoid duplicating logic in frontend; web app sees the same `/plan` API regardless of engine.
-
-Web v2 should make it clear to judges that your project can scale from local to cloud architecture without rewriting the entire stack.
+- **Stateless backend** — all state in AlloyDB. Multiple backend instances behind Cloud Run or GKE load balancer with no coordination needed.
+- **Gateway pattern** — swap LLM provider by changing one env var (`VERTEX_AI_ENABLED`). Frontend is completely isolated from this change.
+- **Async analytics** — BigQuery writes are fire-and-forget. Analytics never adds latency to user requests.
+- **Vector index** — AlloyDB pgvector IVFFlat index supports ~millions of place embeddings. Vertex AI Vector Search scales to billions.
+- **RAG fallback chain** — Vector Search → AlloyDB pgvector → SQLite LIKE (v1). Three levels of degradation before a hard failure.
