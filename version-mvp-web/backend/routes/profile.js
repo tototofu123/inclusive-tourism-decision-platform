@@ -1,44 +1,30 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db/database');
-const { randomUUID } = require('crypto');
+const crypto = require('crypto');
 
-// POST /api/profile — create or update user profile
-router.post('/', (req, res) => {
-  const { session_id, mobility_type, needs_frequent_rest, dietary_tags, language } = req.body;
-
-  const sessionId = session_id || randomUUID();
-
-  const upsert = db.prepare(`
-    INSERT INTO user_profiles (session_id, mobility_type, needs_frequent_rest, dietary_tags, language)
-    VALUES (?, ?, ?, ?, ?)
-    ON CONFLICT(session_id) DO UPDATE SET
-      mobility_type = excluded.mobility_type,
-      needs_frequent_rest = excluded.needs_frequent_rest,
-      dietary_tags = excluded.dietary_tags,
-      language = excluded.language
-  `);
-
-  try {
-    upsert.run(
-      sessionId,
-      mobility_type || 'standard',
-      needs_frequent_rest ? 1 : 0,
-      JSON.stringify(dietary_tags || []),
-      language || 'en'
+router.post('/', async (req, res) => {
+  const { mobility_type, needs_frequent_rest, dietary_tags, session_id } = req.body;
+  const sid = session_id || crypto.randomUUID();
+  const existing = await db.get('SELECT id FROM user_profiles WHERE session_id = ?', [sid]);
+  if (existing) {
+    await db.run(
+      'UPDATE user_profiles SET mobility_type=?, needs_frequent_rest=?, dietary_tags=? WHERE session_id=?',
+      [mobility_type || 'standard', needs_frequent_rest ? 1 : 0, JSON.stringify(dietary_tags || []), sid]
     );
-
-    const profile = db.prepare('SELECT * FROM user_profiles WHERE session_id = ?').get(sessionId);
-    res.json({ success: true, session_id: sessionId, data: profile });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+  } else {
+    await db.run(
+      'INSERT INTO user_profiles (session_id, mobility_type, needs_frequent_rest, dietary_tags) VALUES (?,?,?,?)',
+      [sid, mobility_type || 'standard', needs_frequent_rest ? 1 : 0, JSON.stringify(dietary_tags || [])]
+    );
   }
+  res.json({ success: true, session_id: sid });
 });
 
-// GET /api/profile/:session_id
-router.get('/:session_id', (req, res) => {
-  const profile = db.prepare('SELECT * FROM user_profiles WHERE session_id = ?').get(req.params.session_id);
-  if (!profile) return res.status(404).json({ success: false, error: 'Profile not found' });
+router.get('/:session_id', async (req, res) => {
+  const profile = await db.get('SELECT * FROM user_profiles WHERE session_id = ?', [req.params.session_id]);
+  if (!profile) return res.status(404).json({ success: false, error: 'Not found' });
+  if (profile.dietary_tags) profile.dietary_tags = JSON.parse(profile.dietary_tags);
   res.json({ success: true, data: profile });
 });
 

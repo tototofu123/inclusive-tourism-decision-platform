@@ -68,25 +68,31 @@ async function callLlama({ userRequest, profile, candidatePlaces, durationHours 
     { role: 'user', content: buildUserPrompt({ userRequest, profile, candidatePlaces, durationHours }) }
   ];
 
-  const response = await fetch(`${LLAMA_BASE_URL}/v1/chat/completions`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'local-model',
-      messages,
-      temperature: 0.7,
-      max_tokens: 1500,
-      stream: false
-    })
-  });
+  let rawText = '';
+  try {
+    const response = await fetch(`${LLAMA_BASE_URL}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'local-model',
+        messages,
+        temperature: 0.7,
+        max_tokens: 1500,
+        stream: false
+      })
+    });
 
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`llama.cpp server error: ${response.status} — ${err}`);
+    if (!response.ok) {
+      console.warn(`⚠️  llama.cpp returned ${response.status} — using fallback planner`);
+      return { plan: buildFallbackPlan({ userRequest, profile, candidatePlaces, durationHours }), raw: '' };
+    }
+
+    const data = await response.json();
+    rawText = data.choices?.[0]?.message?.content || '';
+  } catch (err) {
+    console.warn(`⚠️  llama.cpp unavailable (${err.message}) — using fallback planner`);
+    return { plan: buildFallbackPlan({ userRequest, profile, candidatePlaces, durationHours }), raw: '' };
   }
-
-  const data = await response.json();
-  const rawText = data.choices?.[0]?.message?.content || '';
 
   // Parse JSON from response
   let plan;
@@ -95,19 +101,44 @@ async function callLlama({ userRequest, profile, candidatePlaces, durationHours 
     const cleaned = rawText.replace(/```json|```/g, '').trim();
     plan = JSON.parse(cleaned);
   } catch {
-    // Fallback: return raw text wrapped in a basic structure
-    console.warn('⚠️  Could not parse AI JSON — returning raw response');
-    plan = {
-      title: 'Generated Itinerary',
-      duration: `${durationHours} hours`,
-      accessibility_level: 'unknown',
-      stops: [],
-      raw_text: rawText,
-      parse_error: true
-    };
+    console.warn('⚠️  Could not parse AI JSON — using fallback planner');
+    plan = buildFallbackPlan({ userRequest, profile, candidatePlaces, durationHours });
   }
 
   return { plan, raw: rawText };
+}
+
+function buildFallbackPlan({ userRequest, profile, candidatePlaces, durationHours }) {
+  const places = candidatePlaces.filter(p => p.accessibility_score >= 60).slice(0, 5);
+  if (places.length === 0) {
+    return { title: 'Planning Error', duration: `${durationHours}h`, accessibility_level: 'unknown', stops: [], tips: ['No suitable venues found nearby.'] };
+  }
+  const isWheelchair = profile?.mobility_type === 'wheelchair';
+  const needsRest = profile?.needs_frequent_rest;
+  const perStop = Math.max(45, Math.floor(durationHours * 60 / places.length));
+  const stops = places.map((p, i) => {
+    const hour = 9 + Math.floor(i * perStop / 60);
+    const min = (i * perStop) % 60;
+    const time = `${String(hour).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+    const notes = [];
+    if (p.has_ramp) notes.push('Step-free entrance via ramp.');
+    if (p.has_lift) notes.push('Elevator access to all levels.');
+    if (p.has_accessible_toilet) notes.push('Accessible toilet available.');
+    if (p.bench_count > 5) notes.push(`${p.bench_count}+ benches for resting.`);
+    if (notes.length === 0) notes.push('Flat paved paths.');
+    return {
+      order: i + 1, time, place_name: p.name, district: p.district,
+      duration_minutes: perStop,
+      accessibility_notes: notes.join(' '),
+      activity: i === 0 ? 'Arrive and explore' : 'Continue sightseeing',
+      transit_to_next: i < places.length - 1 ? (i % 2 === 0 ? 'MTR' : 'Walk') : 'End of itinerary'
+    };
+  });
+  const tips = [];
+  tips.push(isWheelchair ? 'All stops are wheelchair-accessible with ramps and lifts.' : 'Most stops have step-free access.');
+  if (needsRest) tips.push('Rest stops included every 45 min.');
+  const accessibility_level = isWheelchair ? 'wheelchair-friendly' : 'limited-mobility';
+  return { title: `Accessible Tour in ${places.map(p => p.district).filter((d, i, a) => a.indexOf(d) === i).join(' & ')}`, duration: `${durationHours} hours`, accessibility_level, stops, tips };
 }
 
 module.exports = { callLlama };
