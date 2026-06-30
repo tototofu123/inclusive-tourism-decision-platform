@@ -48,11 +48,11 @@ export default function MapView({
 
     const bounds = L.latLngBounds([]);
 
-    markers.forEach((m) => {
+    markers.forEach((m, idx) => {
       const color = COLORS[m.category || ''] || '#0070f3';
       const icon = L.divIcon({
         className: '',
-        html: `<div style="background:${color};color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,.3)">${m.day || ''}</div>`,
+        html: `<div style="background:${color};color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,.3)">${idx + 1}</div>`,
         iconSize: [28, 28], iconAnchor: [14, 14],
       });
       const popup = m.day

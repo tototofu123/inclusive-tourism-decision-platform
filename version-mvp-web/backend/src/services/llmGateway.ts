@@ -22,8 +22,10 @@ function fetchWithTimeout(url: string, opts: RequestInit, ms: number): Promise<R
   return fetch(url, { ...opts, signal: c.signal }).finally(() => clearTimeout(t));
 }
 
-export async function planTrip(userText: string): Promise<LLMResponse> {
+export async function planTrip(userText: string, context?: string): Promise<LLMResponse> {
   console.log('planTrip: calling LLM...');
+  let prompt = `${PROMPT}\n\nPlan a trip for: ${userText}\n\nJSON:`;
+  if (context) prompt = `${PROMPT}\n\nExisting trip context:\n${context}\n\nModify or replace based on the new request: ${userText}\n\nJSON:`;
   try {
     const res = await fetchWithTimeout(`${LLAMA_HOST}/v1/chat/completions`, {
       method: 'POST',
@@ -31,7 +33,7 @@ export async function planTrip(userText: string): Promise<LLMResponse> {
       body: JSON.stringify({
         messages: [
           { role: 'system', content: 'You respond only with valid JSON. No thinking. No markdown. No explanation.' },
-          { role: 'user', content: `${PROMPT}\n\nPlan a trip for: ${userText}\n\nJSON:` }
+          { role: 'user', content: prompt }
         ],
         temperature: 0.1,
         max_tokens: 2048,

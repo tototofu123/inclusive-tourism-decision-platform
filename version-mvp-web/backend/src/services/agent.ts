@@ -73,8 +73,13 @@ async function findPlaces(query_text: string): Promise<{ places: ChatResponse['p
   };
 }
 
-async function createItinerary(text: string): Promise<{ itinerary: NonNullable<ChatResponse['itinerary']>; places: ChatResponse['places']; thinking: string[] }> {
-  const llmPlan = await planTrip(text);
+async function createItinerary(text: string, existingId?: number): Promise<{ itinerary: NonNullable<ChatResponse['itinerary']>; places: ChatResponse['places']; thinking: string[] }> {
+  let context: string | undefined;
+  if (existingId) {
+    const old = await query('SELECT ii.label, p.name, p.category FROM itinerary_items ii JOIN places p ON ii.place_id = p.id WHERE ii.itinerary_id = $1 ORDER BY ii.stop_index', [existingId]);
+    if (old.rows.length > 0) context = old.rows.map((r: any) => `- ${r.label || r.name} (${r.category})`).join('\n');
+  }
+  const llmPlan = await planTrip(text, context);
   const categories = [...new Set(llmPlan.stops.map(s => s.category))];
   const th: string[] = [
     `Planning a Kowloon trip based on: "${text}"`,
@@ -189,7 +194,7 @@ export async function processChat(text: string, itineraryId?: number): Promise<C
   const thinkingBase = [`Detected intent: ${intent}`, `Processing: "${text.slice(0, 60)}${text.length > 60 ? '...' : ''}"`];
 
   if (intent === 'create_itinerary') {
-    const { itinerary, places, thinking } = await createItinerary(text);
+    const { itinerary, places, thinking } = await createItinerary(text, itineraryId);
     const all = await query('SELECT id, user_text, created_at FROM itineraries ORDER BY created_at DESC LIMIT 20');
     const stopNames = places?.map((p: any) => p.name).join(', ') || '';
     return {
@@ -202,7 +207,7 @@ export async function processChat(text: string, itineraryId?: number): Promise<C
 
   if (intent === 'add_to_itinerary') {
     if (!itineraryId) {
-      const { itinerary, places, thinking } = await createItinerary(text + ' ' + text.replace(/add|include|also|plus|another/gi, '').trim());
+      const { itinerary, places, thinking } = await createItinerary(text + ' ' + text.replace(/add|include|also|plus|another/gi, '').trim(), itineraryId);
       const all = await query('SELECT id, user_text, created_at FROM itineraries ORDER BY created_at DESC LIMIT 20');
       return {
         thinking: generateThinking([...thinkingBase, 'No active itinerary - created a new one', ...thinking]),

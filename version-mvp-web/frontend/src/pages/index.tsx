@@ -49,7 +49,7 @@ export default function Home() {
   const msgEnd = useRef<HTMLDivElement>(null);
   const itinSwitcher = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { msgEnd.current?.scrollIntoView({ behavior: 'smooth' }) }, [msgs]);
+  useEffect(() => { if (tab === 'chat') msgEnd.current?.scrollIntoView({ behavior: 'smooth' }) }, [msgs, tab]);
 
   useEffect(() => {
     fetch(`${API}/sessions`).then(r => r.json()).then(setSessions).catch(() => {});
