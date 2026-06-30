@@ -14,9 +14,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .msg.user .bubble{background:#0070f3;color:white;border-radius:16px 16px 4px 16px;padding:10px 14px}
 .msg.bot .bubble{background:white;border:1px solid #e0e0e0;border-radius:16px 16px 16px 4px;padding:10px 14px}
 .msg .bubble{font-size:0.95rem;line-height:1.4}
-.msg .thinking-toggle{font-size:0.8rem;color:#0070f3;cursor:pointer;padding:4px 0;user-select:none;display:inline-block}
-.msg .thinking-toggle:hover{text-decoration:underline}
-.msg .thinking-content{background:#f0f4ff;border-left:3px solid #0070f3;padding:8px 12px;margin-top:6px;border-radius:4px;font-size:0.85rem;color:#555;line-height:1.5}
+.msg .thinking-content{background:#f0f4ff;border-left:3px solid #0070f3;padding:8px 12px;margin-top:6px;border-radius:4px;font-size:0.82rem;color:#555;line-height:1.5;font-family:monospace}
+.msg .thinking-content div:first-child{color:#0070f3;font-weight:500}
+.msg .thinking-content div:last-child{color:#2e7d32;font-weight:500}
 .chat-input{display:flex;gap:8px;padding:12px 16px;border-top:1px solid #e0e0e0;background:white;flex-shrink:0}
 .chat-input input{flex:1;padding:10px 16px;border:1px solid #ddd;border-radius:24px;font-size:0.95rem;outline:none}
 .chat-input input:focus{border-color:#0070f3}

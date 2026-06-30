@@ -27,7 +27,7 @@ export default function Home() {
   const [currentPlaces, setCurrentPlaces] = useState<any[]>([]);
   const [currentItineraryId, setCurrentItineraryId] = useState<number | undefined>();
   const [itineraries, setItineraries] = useState<ItinerarySummary[]>([]);
-  const [expandedThinking, setExpandedThinking] = useState<Record<number, boolean>>({});
+
   const [sessionId, setSessionId] = useState<number | undefined>();
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [showSessions, setShowSessions] = useState(false);
@@ -107,7 +107,6 @@ export default function Home() {
   }
 
   function loadItinerary(id: number) { window.open(`/itinerary/${id}`, '_blank'); }
-  function toggleThinking(i: number) { setExpandedThinking(x => ({ ...x, [i]: !x[i] })); }
 
   const suggestions = [
     'Plan a Kowloon trip with museum and cafe',
@@ -170,16 +169,9 @@ export default function Home() {
                   {m.text || (m.type === 'bot' && !m.text ? <span className="loading-dots">Thinking</span> : m.text)}
                 </div>
                 {m.type === 'bot' && m.thinking && m.thinking.length > 0 && (
-                  <>
-                    <div className="thinking-toggle" onClick={() => toggleThinking(i)}>
-                      {expandedThinking[i] ? '▼ Hide thinking' : '▶ Show thinking'}
-                    </div>
-                    {expandedThinking[i] && (
-                      <div className="thinking-content">
-                        {m.thinking.map((s, j) => <div key={j}>{s}</div>)}
-                      </div>
-                    )}
-                  </>
+                  <div className="thinking-content">
+                    {m.thinking.map((s, j) => <div key={j}>{s}</div>)}
+                  </div>
                 )}
                 {m.itineraryId && (
                   <div style={{ fontSize: '0.8rem', color: '#0070f3', marginTop: 4 }}>

@@ -13,8 +13,25 @@ function Log($Msg) { Write-Host "[docker] $Msg" -ForegroundColor Cyan }
 try {
   docker ps -q 2>&1 | Out-Null
 } catch {
-  Log "ERROR: Docker is not running. Start Docker Desktop first."
-  exit 1
+  Log "Docker is not running. Attempting to start Docker Desktop..."
+  $dd = Get-ChildItem "$env:ProgramFiles\Docker\Docker\Docker Desktop.exe", "${env:ProgramFiles(x86)}\Docker\Docker\Docker Desktop.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+  if ($dd) {
+    Start-Process -FilePath $dd.FullName
+    Log "Waiting for Docker to start (up to 60s)..."
+    $ready = $false
+    for ($i = 0; $i -lt 30; $i++) {
+      Start-Sleep 2
+      try { docker ps -q 2>&1 | Out-Null; $ready = $true; break } catch {}
+    }
+    if (-not $ready) {
+      Log "ERROR: Docker did not start within 60s. Start Docker Desktop manually."
+      exit 1
+    }
+    Log "Docker Desktop is now running."
+  } else {
+    Log "ERROR: Docker Desktop not found. Install Docker Desktop or start it manually."
+    exit 1
+  }
 }
 
 # Check if our container already exists

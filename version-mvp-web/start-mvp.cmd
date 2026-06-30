@@ -25,6 +25,8 @@ echo.
 
 :: 2. Backend
 echo [2/3] Starting backend (port 4000)...
+>nul 2>&1 powershell -c "netstat -ano | findstr ':4000' | findstr LISTEN | %%{ $_.Trim().Split()[-1] } | %%{ Stop-Process -Id $_ -Force }"
+timeout /t 2 /nobreak >nul
 cd /d backend
 if not exist ".env" copy .env.example .env >nul
 start /b "BE" cmd /c "npx tsx src/index.ts" >nul 2>&1
