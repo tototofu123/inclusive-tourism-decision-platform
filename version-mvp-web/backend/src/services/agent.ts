@@ -153,9 +153,10 @@ export async function processChat(text: string, itineraryId?: number): Promise<C
   if (intent === 'create_itinerary') {
     const { itinerary, places, thinking } = await createItinerary(text);
     const all = await query('SELECT id, user_text, created_at FROM itineraries ORDER BY created_at DESC LIMIT 20');
+    const stopNames = places?.map((p: any) => p.name).join(', ') || '';
     return {
       thinking: generateThinking([...thinkingBase, ...thinking]),
-      intent, response: `Here's your Kowloon itinerary! I found ${places?.length || 0} places for you.`,
+      intent, response: `Here's your Kowloon itinerary! I found ${places?.length || 0} places: ${stopNames}`,
       places, itinerary,
       allItineraries: all.rows.map((r: any) => ({ id: r.id, user_text: r.user_text, created_at: r.created_at, stop_count: 0 })),
     };
