@@ -1,26 +1,22 @@
 {
-  "name": "inclusive-tourism-backend",
+  "name": "mvp-backend",
   "version": "1.0.0",
-  "description": "MVP backend - Node.js/Express AI gateway + REST API",
-  "main": "src/server.js",
+  "private": true,
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
-    "db:migrate": "node src/database/migrate.js",
-    "db:seed": "node src/database/seed.js"
+    "dev": "tsx src/index.ts",
+    "start": "tsx src/index.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
-    "express": "^4.18.2",
-    "express-rate-limit": "^7.1.5",
-    "helmet": "^7.1.0",
-    "morgan": "^1.10.0",
-    "node-fetch": "^3.3.2",
-    "pg": "^8.11.3",
-    "sql.js": "^1.14.1"
+    "express": "^4.21.0",
+    "pg": "^8.13.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.2"
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.11.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
   }
 }

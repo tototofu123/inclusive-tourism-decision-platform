@@ -22,28 +22,26 @@ if exist "%LLAMA_DIR%\llama-server.exe" (
 )
 echo.
 
-:: 2. Seed + Backend
-echo [2/3] Seeding DB and starting backend (port 3001)...
+:: 2. Backend
+echo [2/3] Starting backend (port 4000)...
 cd /d backend
 if not exist ".env" copy .env.example .env >nul
-node db/seed.js
-start "BE" cmd /c "node server.js"
+start "BE" cmd /c "npx tsx src/index.ts"
 cd /d ..
-timeout /t 4 /nobreak >nul
+timeout /t 6 /nobreak >nul
 echo.
 
 :: 3. Frontend
 echo [3/3] Starting frontend (port 3000)...
 cd /d frontend
-if not exist ".env.local" copy .env.local.example .env.local >nul
 start "FE" cmd /c "npx next dev -p 3000"
 cd /d ..
-timeout /t 4 /nobreak >nul
+timeout /t 6 /nobreak >nul
 
 echo.
 echo === MVP Running ===
 echo   Frontend: http://localhost:3000
-echo   Backend:  http://localhost:3001
-echo   LLM:      http://localhost:8080 (if model found)
+echo   Backend:  http://localhost:4000
+echo   LLM:      http://localhost:8081 (if model found)
 echo.
 pause
