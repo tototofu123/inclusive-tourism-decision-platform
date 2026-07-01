@@ -92,7 +92,14 @@ async function createItinerary(text: string, existingId?: number): Promise<{ iti
   resolved = nearestNeighborReorder(resolved);
   th.push(`Reordered stops to minimize walking distance`);
 
-  const days = llmPlan.days || 1;
+  let days = llmPlan.days || 1;
+  const dayMatch = text.match(/(\d+)\s*day|\b(one|two|three|four|five)\s*day/i);
+  if (dayMatch) {
+    const numMap: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5 };
+    const parsed = parseInt(dayMatch[1] || dayMatch[2]);
+    const detected = !isNaN(parsed) ? parsed : (numMap[dayMatch[2]?.toLowerCase()] || 1);
+    if (detected > days) days = Math.min(detected, 5);
+  }
   if (llmPlan.focus_areas?.length) th.push(`Focus areas: ${llmPlan.focus_areas.join(', ')}`);
 
   const itineraryId = await saveItinerary(text, 'Kowloon');
@@ -123,7 +130,7 @@ async function createItinerary(text: string, existingId?: number): Promise<{ iti
     stops.push({ label: p.label, placeId: p.placeId, startTime: st, endTime: et, lat: p.lat, lng: p.lng, day, distance: dist });
   }
 
-  th.push(`Saved itinerary #${itineraryId} to database (${days} day${days > 1 ? 's' : ''})`);
+  if (days > 1) th.push(`Saved itinerary #${itineraryId} to database (${days} days)`);
   return {
     itinerary: { id: itineraryId, stops },
     places: resolved.map(p => ({ id: p.placeId, name: p.label, lat: p.lat, lng: p.lng })),

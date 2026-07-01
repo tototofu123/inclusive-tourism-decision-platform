@@ -377,10 +377,7 @@ export default function Home() {
 
       <div className="tabs">
         <button className={`tab ${tab === 'chat' ? 'active' : ''}`} onClick={() => setTab('chat')}>Chat</button>
-        <button className={`tab ${tab === 'map' ? 'active' : ''}`} onClick={() => setTab('map')} style={{ position: 'relative' }}>
-          Map
-          {detail && <span className="tab-badge">{daysFromItems(detail.items).length}d</span>}
-        </button>
+        <button className={`tab ${tab === 'map' ? 'active' : ''}`} onClick={() => setTab('map')}>Map</button>
         <button className={`tab ${tab === 'itinerary' ? 'active' : ''}`} onClick={() => { if (!detail && currentItineraryId) fetchDetail(currentItineraryId); setTab('itinerary'); }}>Itinerary</button>
         <button className={`tab ${tab === 'places' ? 'active' : ''}`} onClick={() => setTab('places')}>Places</button>
       </div>
