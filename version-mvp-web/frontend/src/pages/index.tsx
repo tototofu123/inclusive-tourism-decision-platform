@@ -46,15 +46,16 @@ export default function Home() {
   const [detail, setDetail] = useState<ItineraryDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [dayFilter, setDayFilter] = useState<number | null>(null);
+  const [placesLoading, setPlacesLoading] = useState(true);
   const msgEnd = useRef<HTMLDivElement>(null);
   const itinSwitcher = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { if (tab === 'chat') msgEnd.current?.scrollIntoView({ behavior: 'smooth' }) }, [msgs, tab]);
+  useEffect(() => { if (tab === 'chat') msgEnd.current?.scrollIntoView() }, [msgs, tab]);
 
   useEffect(() => {
     fetch(`${API}/sessions`).then(r => r.json()).then(setSessions).catch(() => {});
     fetch(`${API}/itineraries`).then(r => r.json()).then(d => setItineraries(d)).catch(() => {});
-    fetch(`${API}/places`).then(r => r.json()).then(d => { setStoredPlaces(d.places || []); setPlacesTotal(d.total || 0); }).catch(() => {});
+    fetch(`${API}/places`).then(r => r.json()).then(d => { setStoredPlaces(d.places || []); setPlacesTotal(d.total || 0); }).catch(() => {}).finally(() => setPlacesLoading(false));
   }, []);
 
   useEffect(() => {
@@ -68,7 +69,8 @@ export default function Home() {
   function fetchDetail(id: number) {
     setDetailLoading(true);
     setDetail(null);
-    fetch(`${API}/itinerary/${id}`).then(r => r.json()).then(d => { setDetail(d); setDetailLoading(false); }).catch(() => setDetailLoading(false));
+    const timer = setTimeout(() => setDetailLoading(false), 15000);
+    fetch(`${API}/itinerary/${id}`).then(r => r.json()).then(d => { clearTimeout(timer); setDetail(d); setDetailLoading(false); }).catch(() => { clearTimeout(timer); setDetailLoading(false); });
   }
 
   async function send(text: string) {
@@ -102,7 +104,7 @@ export default function Home() {
       }));
       if (data.allItineraries) setItineraries(data.allItineraries);
       setSessions(x => x.map(s => s.id === sid ? { ...s, msg_count: s.msg_count + 2, title: s.msg_count === 0 ? text.trim().slice(0, 40) : s.title } : s));
-      fetch(`${API}/places`).then(r => r.json()).then(d => { setStoredPlaces(d.places || []); }).catch(() => {});
+      fetch(`${API}/places`).then(r => r.json()).then(d => { setStoredPlaces(d.places || []); setPlacesTotal(d.total || 0); }).catch(() => {});
 
       if (data.itinerary?.id) fetchDetail(data.itinerary.id);
     } catch {
@@ -354,7 +356,8 @@ export default function Home() {
         <div className={`tab-content tab-content-padded ${tab === 'places' ? 'active' : ''}`}>
           <div style={{ padding: 16 }}>
             <h2 style={{ fontSize: '1.1rem', marginBottom: 12 }}>All Saved Places ({placesTotal})</h2>
-            {storedPlaces.length === 0 && (
+            {placesLoading && <div className="welcome" style={{ padding: 20 }}><h2>Loading...</h2><p>Fetching places from database.</p></div>}
+            {!placesLoading && storedPlaces.length === 0 && (
               <div className="welcome" style={{ padding: 20 }}><h2>No places saved</h2><p>Places discovered during chats are saved here globally.</p></div>
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
