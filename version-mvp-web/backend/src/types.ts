@@ -1,8 +1,5 @@
-export type Intent = 'question' | 'find_places' | 'create_itinerary' | 'add_to_itinerary' | 'modify_itinerary';
-
 export interface ChatResponse {
   thinking: string[];
-  intent: Intent;
   response: string;
   sessionTitle?: string;
   places?: Place[];

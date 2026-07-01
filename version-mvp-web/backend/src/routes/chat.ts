@@ -3,18 +3,9 @@ import { processChat } from '../services/agent';
 import { query, saveMessage } from '../db/client';
 import crypto from 'crypto';
 
-function genSessionTitle(text: string, intent?: string): string {
-  const t = text.toLowerCase();
-  let label = 'Chat';
-  if (intent === 'create_itinerary') {
-    const dayMatch = t.match(/(\d+)\s*day/);
-    const days = dayMatch ? dayMatch[1] : '';
-    label = days ? `Plan ${days}-day trip` : 'Plan trip';
-  } else if (intent === 'find_places') label = 'Find places';
-  else if (intent === 'modify_itinerary') label = 'Edit itinerary';
-  else label = 'Ask a question';
-  const short = text.length > 30 ? text.slice(0, 30).trim() + '…' : text;
-  return `${label}: ${short}`;
+function genSessionTitle(text: string): string {
+  const t = text.trim();
+  return t.length > 45 ? t.slice(0, 45) + '…' : t;
 }
 
 const router = Router();
@@ -47,34 +38,37 @@ router.post('/chat', async (req: Request, res: Response) => {
   const processId = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
   processes.set(processId, { thinking: [], done: false });
 
-  // Return processId immediately
+  console.log('POST /chat: returning processId immediately');
   res.json({ processId });
+  console.log('POST /chat: response sent, starting background...');
 
   // Background processing
-  try {
-    const sid = sessionId ? parseInt(sessionId) : undefined;
+  (async () => {
+    try {
+      const sid = sessionId ? parseInt(sessionId) : undefined;
 
-    const result = await processChat(
-      text.trim(),
-      itineraryId ? parseInt(itineraryId) : undefined,
-      (step: string) => {
-        const state = processes.get(processId);
-        if (state) state.thinking.push(step);
-      }
-    );
+      const result = await processChat(
+        text.trim(),
+        itineraryId ? parseInt(itineraryId) : undefined,
+        (step: string) => {
+          const state = processes.get(processId);
+          if (state) state.thinking.push(step);
+        },
+        sid
+      );
 
     if (sid) {
       // Update session title if still default
       const sess = await query('SELECT title FROM sessions WHERE id=$1', [sid]);
       if (sess.rows.length > 0 && (sess.rows[0].title === 'New Chat' || !sess.rows[0].title)) {
-        const newTitle = genSessionTitle(text.trim(), result.intent);
+        const newTitle = genSessionTitle(text.trim());
         await query('UPDATE sessions SET title=$1 WHERE id=$2', [newTitle, sid]);
         result.sessionTitle = newTitle;
       }
       await saveMessage({ session_id: sid, role: 'user', content: text.trim() });
       await saveMessage({
         session_id: sid, role: 'assistant', content: result.response,
-        intent: result.intent, thinking: JSON.stringify(result.thinking || []),
+        thinking: JSON.stringify(result.thinking || []),
         places_json: result.places, itinerary_id: result.itinerary?.id || null,
       });
     }
@@ -85,15 +79,16 @@ router.post('/chat', async (req: Request, res: Response) => {
       pState.result = result;
       pState.done = true;
     }
-  } catch (err) {
-    const msg = (err as Error).message;
-    console.error('Chat error:', msg);
-    const state = processes.get(processId);
-    if (state) {
-      state.error = msg;
-      state.done = true;
+    } catch (err) {
+      const msg = (err as Error).message;
+      console.error('Chat error:', msg);
+      const state = processes.get(processId);
+      if (state) {
+        state.error = msg;
+        state.done = true;
+      }
     }
-  }
+  })();
 });
 
 // GET /chat/status/:processId — poll for current state

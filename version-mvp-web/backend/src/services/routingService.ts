@@ -7,12 +7,31 @@ export async function getRoute(fromLat: number, fromLng: number, toLat: number, 
     if (!res.ok) throw new Error(`OSRM ${res.status}`);
     const data = await res.json() as any;
     if (!data.routes?.length) throw new Error('No route');
-    return { distance_meters: Math.round(data.routes[0].distance), duration_seconds: Math.round(data.routes[0].duration), geometry: data.routes[0].geometry };
+    const dist = data.routes[0].distance;
+    const dur = data.routes[0].duration;
+    // OSRM walking profile sometimes returns driving data for areas without walking coverage.
+    // Reject if walking speed > 8 km/h (likely driving data)
+    const speedKph = dist / dur * 3.6;
+    if (speedKph > 8) {
+      console.log(`OSRM speed ${speedKph.toFixed(1)} km/h too high for walking, using fallback`);
+      return haversineFallback(fromLat, fromLng, toLat, toLng);
+    }
+    return { distance_meters: Math.round(dist), duration_seconds: Math.round(dur), geometry: data.routes[0].geometry };
   } catch (err) {
     console.error('OSRM failed:', (err as Error).message);
-    const dist = haversine(fromLat, fromLng, toLat, toLng);
-    return { distance_meters: Math.round(dist * 1.4), duration_seconds: Math.round(dist * 1.4 / 1.4), geometry: { type: 'LineString', coordinates: [[fromLng, fromLat], [toLng, toLat]] } };
+    return haversineFallback(fromLat, fromLng, toLat, toLng);
   }
+}
+
+function haversineFallback(fromLat: number, fromLng: number, toLat: number, toLng: number) {
+  const dist = haversine(fromLat, fromLng, toLat, toLng);
+  const roadDist = dist * 1.4;
+  const durSec = Math.round(roadDist / 1.4);
+  return {
+    distance_meters: Math.round(roadDist),
+    duration_seconds: durSec,
+    geometry: { type: 'LineString', coordinates: [[fromLng, fromLat], [toLng, toLat]] },
+  };
 }
 
 function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {

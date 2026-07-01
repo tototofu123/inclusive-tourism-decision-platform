@@ -4,17 +4,28 @@ import dynamic from 'next/dynamic';
 const MapView = dynamic(() => import('../components/MapView'), { ssr: false });
 const API = process.env.NEXT_PUBLIC_API_HOST || 'http://localhost:4000';
 
-type Tab = 'chat' | 'map' | 'itinerary' | 'places';
-type Intent = 'question' | 'find_places' | 'create_itinerary' | 'add_to_itinerary' | 'modify_itinerary';
+// Simple markdown → HTML converter (safe: LLM output only)
+function md(s: string): string {
+  if (!s) return '';
+  return s
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
+    .replace(/\n/g, '<br>');
+}
 
+type Tab = 'chat' | 'map' | 'itinerary' | 'places';
 interface ChatMsg {
   type: 'user' | 'bot';
   text?: string;
   thinking: string[];
   done?: boolean;
-  intent?: Intent;
   places?: any[];
   itineraryId?: number;
+  fakeUntil?: number;
 }
 
 interface ItinerarySummary { id: number; user_text: string; created_at: string; stop_count: number }
@@ -28,14 +39,6 @@ interface ItineraryDetail {
     road_distance_meters: number; lat: number; lng: number; category: string;
     day_number: number; description?: string;
   }>;
-}
-
-function genTitle(intent?: Intent, days?: number, placeCount?: number): string {
-  if (intent === 'create_itinerary') return days ? `Plan ${days}d trip` : 'Plan trip';
-  if (intent === 'add_to_itinerary') return 'Add to itinerary';
-  if (intent === 'modify_itinerary') return 'Modify itinerary';
-  if (intent === 'find_places') return `Find places${placeCount ? ` (${placeCount})` : ''}`;
-  return 'Ask a question';
 }
 
 export default function Home() {
@@ -62,6 +65,11 @@ export default function Home() {
   const itinSwitcher = useRef<HTMLDivElement>(null);
   const sessRef = useRef<HTMLDivElement>(null);
   const [collapsedThinking, setCollapsedThinking] = useState<Set<number>>(new Set());
+  const [models, setModels] = useState<string[]>([]);
+  const [currentModel, setCurrentModel] = useState('');
+  const [showModels, setShowModels] = useState(false);
+  const [modelSwitching, setModelSwitching] = useState(false);
+  const modelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { if (tab === 'chat') msgEnd.current?.scrollIntoView() }, [msgs, tab]);
 
@@ -73,12 +81,14 @@ export default function Home() {
     fetch(`${API}/itineraries`).then(r => r.json()).then(d => setItineraries(d)).catch(() => {});
     fetchSessions();
     fetch(`${API}/places`).then(r => r.json()).then(d => { setStoredPlaces(d.places || []); setPlacesTotal(d.total || 0); }).catch(() => {}).finally(() => setPlacesLoading(false));
+    fetch(`${API}/models`).then(r => r.json()).then(d => { setModels(d.models || []); setCurrentModel(d.current || ''); }).catch(() => {});
   }, [fetchSessions]);
 
   useEffect(() => {
     function handler(e: MouseEvent) {
       if (itinSwitcher.current && !itinSwitcher.current.contains(e.target as Node)) setShowItinSwitch(false);
       if (sessRef.current && !sessRef.current.contains(e.target as Node)) setShowSessions(false);
+      if (modelRef.current && !modelRef.current.contains(e.target as Node)) setShowModels(false);
     }
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -98,7 +108,7 @@ export default function Home() {
       const loaded: ChatMsg[] = data.messages.map((m: any) => {
         if (m.role === 'user') return { type: 'user' as const, text: m.content, thinking: [] };
         return {
-          type: 'bot' as const, text: m.content, intent: m.intent,
+          type: 'bot' as const, text: m.content,
           thinking: m.thinking ? JSON.parse(m.thinking) : [],
           done: true,
           places: m.places_json, itineraryId: m.itinerary_id,
@@ -120,7 +130,7 @@ export default function Home() {
     if (!text.trim() || loading) return;
     setInput('');
     const userMsg = { type: 'user' as const, text: text.trim(), thinking: [] };
-    const botMsg = { type: 'bot' as const, thinking: [] as string[], done: false };
+    const botMsg = { type: 'bot' as const, thinking: [] as string[], done: false, fakeUntil: Date.now() + 2500 };
     setMsgs(x => [...x, userMsg, botMsg]);
     setLoading(true);
 
@@ -147,10 +157,10 @@ export default function Home() {
       processId = startData.processId;
       if (!processId) throw new Error('No processId returned');
 
-      // 2. Poll for status updates every 400ms
+      // 2. Poll for status updates every 200ms
       let done = false;
       while (!done) {
-        await new Promise(r => setTimeout(r, 400));
+        await new Promise(r => setTimeout(r, 200));
         const statusRes = await fetch(`${API}/chat/status/${processId}`);
         if (!statusRes.ok) {
           done = true;
@@ -191,7 +201,7 @@ export default function Home() {
                 text: result.response,
                 thinking: status.thinking || [],
                 done: true,
-                intent: result.intent,
+              
                 places,
                 itineraryId: result.itinerary?.id,
               };
@@ -231,6 +241,29 @@ export default function Home() {
       const pts = d.items.map((i: any) => ({ name: i.place_name, lat: i.lat, lng: i.lng, category: i.category, day: i.day_number || 1 }));
       setCurrentPlaces(pts);
     }).catch(() => {});
+  }
+
+  async function switchModel(model: string) {
+    setModelSwitching(true);
+    setShowModels(false);
+    try {
+      const res = await fetch(`${API}/models/switch`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model }),
+      });
+      const d = await res.json();
+      if (d.status === 'switching') {
+        setCurrentModel(model);
+        // Poll until server is back
+        for (let i = 0; i < 60; i++) {
+          await new Promise(r => setTimeout(r, 2000));
+          try {
+            const h = await fetch(`${API}/health`);
+            if (h.ok) { setModelSwitching(false); break; }
+          } catch { /* still down */ }
+        }
+      }
+    } catch { setModelSwitching(false); }
   }
 
   function newSession() {
@@ -287,7 +320,7 @@ export default function Home() {
                   {sessions.map(s => (
                     <div key={s.id} onClick={() => loadSession(s.id)} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '.85rem', borderBottom: '1px solid #f0f0f0' }}
                       onMouseEnter={e => (e.currentTarget.style.background = '#f5f5f5')} onMouseLeave={e => (e.currentTarget.style.background = '')}>
-                      <div style={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.display_title || s.title}</div>
+                      <div style={{ fontWeight: 500, color: '#000', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.display_title || s.title}</div>
                       <div style={{ color: '#888', fontSize: '.75rem' }}>{Math.ceil(s.msg_count / 2)} conv · {new Date(s.updated_at).toLocaleDateString()}</div>
                     </div>
                   ))}
@@ -297,6 +330,27 @@ export default function Home() {
             <button onClick={newSession} style={{ background: 'rgba(255,255,255,.2)', border: '1px solid rgba(255,255,255,.4)', color: 'white', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: '.85rem', whiteSpace: 'nowrap' }}>
               New
             </button>
+            <div ref={modelRef} style={{ position: 'relative' }}>
+              <button onClick={() => setShowModels(x => !x)} disabled={modelSwitching}
+                style={{ background: 'rgba(255,255,255,.15)', border: '1px solid rgba(255,255,255,.3)', color: 'white', padding: '6px 10px', borderRadius: 6, cursor: 'pointer', fontSize: '.75rem', whiteSpace: 'nowrap', opacity: modelSwitching ? .6 : 1 }}>
+                {modelSwitching ? '⟳' : '⚙'} {currentModel ? currentModel.replace(/\.gguf$/, '').slice(0, 20) : 'Model'}
+              </button>
+              {showModels && (
+                <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, width: 280, maxHeight: 300, overflow: 'auto', background: 'white', border: '1px solid #e0e0e0', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,.15)', zIndex: 999 }}>
+                  {models.length === 0 && <div style={{ padding: 12, color: '#888', fontSize: '.85rem' }}>No models found</div>}
+                  {models.map(m => (
+                    <div key={m} onClick={() => switchModel(m)} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '.8rem', background: m === currentModel ? '#f0f4ff' : '', borderBottom: '1px solid #f0f0f0' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = '#f5f5f5')} onMouseLeave={e => (e.currentTarget.style.background = m === currentModel ? '#f0f4ff' : '')}>
+                      <div style={{ fontWeight: 500, color: '#000' }}>{m.replace(/\.gguf$/, '')}</div>
+                      <div style={{ color: '#888', fontSize: '.7rem' }}>{m.endsWith('.gguf') ? 'Local GGUF' : ''}</div>
+                    </div>
+                  ))}
+                  <div style={{ padding: '8px 12px', fontSize: '.7rem', color: '#aaa', borderTop: '1px solid #f0f0f0', fontStyle: 'italic' }}>
+                    Local model switching restarts llama-server
+                  </div>
+                </div>
+              )}
+            </div>
           </>
         )}
 
@@ -342,33 +396,8 @@ export default function Home() {
               const thinkCollapsed = collapsedThinking.has(i);
               return (
               <div key={i} className={`msg ${m.type}`}>
-                {m.intent && <div className={`intent-badge ${m.intent}`}>{m.intent.replace('_', ' ')}</div>}
-
-                {/* Thinking box - always above, collapsible when done */}
-                {m.done && m.thinking.length > 0 && (
-                  <div className="think-toggle" onClick={() => setCollapsedThinking(x => {
-                    const c = new Set(x);
-                    if (c.has(i)) c.delete(i); else c.add(i);
-                    return c;
-                  })}>
-                    {thinkCollapsed ? '▸ Show thinking' : '▾ Hide thinking'}
-                  </div>
-                )}
-                {!m.done && m.thinking.length > 0 && (
-                  <div className="thinking-content">
-                    {m.thinking.map((s, j) => <div key={j}>{s}</div>)}
-                    <div className="thinking-pulse" />
-                  </div>
-                )}
-                {m.done && !thinkCollapsed && m.thinking.length > 0 && (
-                  <div className="thinking-content">
-                    {m.thinking.map((s, j) => <div key={j}>{s}</div>)}
-                  </div>
-                )}
-
-                {/* Content area */}
-                {m.type === 'user' && <div className="bubble">{m.text}</div>}
-                {m.type === 'bot' && !m.done && m.thinking.length === 0 && (
+                {/* Fake UI — exclusive, shown for first 2.5s, hides real thinking */}
+                {m.type === 'bot' && !m.done && Date.now() < (m.fakeUntil || 0) && (
                   <div className="bubble thinking-fake">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span className="loading-dots">Thinking</span>
@@ -382,9 +411,34 @@ export default function Home() {
                     </div>
                   </div>
                 )}
+
+                {/* Real thinking — only after fake window expires */}
+                {m.type === 'bot' && !m.done && Date.now() >= (m.fakeUntil || 0) && m.thinking.length > 0 && (
+                  <div className="thinking-content">
+                    {m.thinking.map((s, j) => <div key={j}>{s}</div>)}
+                    <div className="thinking-pulse" />
+                  </div>
+                )}
+                {m.done && m.thinking.length > 0 && (
+                  <div className="think-toggle" onClick={() => setCollapsedThinking(x => {
+                    const c = new Set(x);
+                    if (c.has(i)) c.delete(i); else c.add(i);
+                    return c;
+                  })}>
+                    {thinkCollapsed ? '▸ Show thinking' : '▾ Hide thinking'}
+                  </div>
+                )}
+                {m.done && !thinkCollapsed && m.thinking.length > 0 && (
+                  <div className="thinking-content">
+                    {m.thinking.map((s, j) => <div key={j}>{s}</div>)}
+                  </div>
+                )}
+
+                {/* Content area */}
+                {m.type === 'user' && <div className="bubble">{m.text}</div>}
                 {m.done && (
                   <>
-                    <div className="bubble">{m.text}</div>
+                    <div className="bubble typewriter" dangerouslySetInnerHTML={{ __html: md(m.text || '') }}></div>
                     {m.places && m.places.length > 0 && (
                       <div className="msg-places">
                         {m.places.map((p: any, j: number) => (

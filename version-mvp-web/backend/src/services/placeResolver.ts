@@ -1,5 +1,6 @@
 import { LLMStop } from '../types';
 import { savePlace } from '../db/client';
+import { queryAllAccessibility } from './accessibilityService';
 
 const OVERPASS_BASE = process.env.OVERPASS_BASE || 'https://overpass-api.de/api/interpreter';
 const NOMINATIM_BASE = process.env.NOMINATIM_BASE || 'https://nominatim.openstreetmap.org';
@@ -32,6 +33,7 @@ const FALLBACK_CATEGORIES: Record<string, string[]> = {
 
 export async function resolveStops(stops: LLMStop[]): Promise<Array<{ placeId: number; label: string; lat: number; lng: number; duration: number }>> {
   const results: Array<{ placeId: number; label: string; lat: number; lng: number; duration: number }> = [];
+  const allAccess = await queryAllAccessibility();
 
   for (const stop of stops) {
     const cats = FALLBACK_CATEGORIES[stop.category] || [stop.category];
@@ -46,10 +48,16 @@ export async function resolveStops(stops: LLMStop[]): Promise<Array<{ placeId: n
       place = await queryNominatim(stop.label, stop.category);
     }
 
+    let wheelTag = '';
+    if (place) {
+      const near = allAccess.find(a => Math.abs(a.lat - place!.lat) < 0.005 && Math.abs(a.lng - place!.lng) < 0.005);
+      if (near?.tags?.wheelchair) wheelTag = ` Wheelchair: ${near.tags.wheelchair}.`;
+    }
+
     if (place) {
       const placeId = await savePlace({
         name: place.name, lat: place.lat, lng: place.lng,
-        category: stop.category, description: stop.notes || `${stop.label} in Kowloon`,
+        category: stop.category, description: (stop.notes || `${stop.label} in Kowloon`) + wheelTag,
         source_api: 'osm',
       });
       results.push({ placeId, label: place.name, lat: place.lat, lng: place.lng, duration: stop.approx_duration_minutes });
@@ -58,8 +66,8 @@ export async function resolveStops(stops: LLMStop[]): Promise<Array<{ placeId: n
       const clng = 114.165 + Math.random() * 0.03;
       const placeId = await savePlace({
         name: `${stop.label} (Kowloon)`, lat: clat, lng: clng,
-        category: stop.category, description: stop.notes || `${stop.label} in Kowloon`,
-        source_api: 'seed',
+        category: stop.category, description: (stop.notes || `${stop.label} in Kowloon`) + (wheelTag || ' (seed)'),
+        source_api: wheelTag ? 'osm' : 'seed',
       });
       results.push({ placeId, label: `${stop.label} (Kowloon)`, lat: clat, lng: clng, duration: stop.approx_duration_minutes });
     }
