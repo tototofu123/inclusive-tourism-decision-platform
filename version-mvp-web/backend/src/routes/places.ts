@@ -5,7 +5,7 @@ const router = Router();
 
 router.get('/places', async (req: Request, res: Response) => {
   try {
-    const limit = parseInt(req.query.limit as string) || 50;
+    const limit = parseInt(req.query.limit as string) || 9999;
     const offset = parseInt(req.query.offset as string) || 0;
     const data = await listPlaces(limit, offset);
     res.json(data);

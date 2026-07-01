@@ -54,7 +54,7 @@ export default function Home() {
   useEffect(() => {
     fetch(`${API}/sessions`).then(r => r.json()).then(setSessions).catch(() => {});
     fetch(`${API}/itineraries`).then(r => r.json()).then(d => setItineraries(d)).catch(() => {});
-    fetch(`${API}/places?limit=9999`).then(r => r.json()).then(d => { setStoredPlaces(d.places || []); setPlacesTotal(d.total || 0); }).catch(() => {});
+    fetch(`${API}/places`).then(r => r.json()).then(d => { setStoredPlaces(d.places || []); setPlacesTotal(d.total || 0); }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -102,7 +102,7 @@ export default function Home() {
       }));
       if (data.allItineraries) setItineraries(data.allItineraries);
       setSessions(x => x.map(s => s.id === sid ? { ...s, msg_count: s.msg_count + 2, title: s.msg_count === 0 ? text.trim().slice(0, 40) : s.title } : s));
-      fetch(`${API}/places?limit=9999`).then(r => r.json()).then(d => { setStoredPlaces(d.places || []); }).catch(() => {});
+      fetch(`${API}/places`).then(r => r.json()).then(d => { setStoredPlaces(d.places || []); }).catch(() => {});
 
       if (data.itinerary?.id) fetchDetail(data.itinerary.id);
     } catch {
@@ -261,25 +261,29 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Map Tab */}
+        {/* Map Tab — MapView only rendered when active to prevent overflow into chat */}
         <div className={`tab-content map-tab ${tab === 'map' ? 'active' : ''}`}>
-          {detail && (() => {
-            const days = daysFromItems(detail.items);
-            return (
-              <div className="map-day-filters">
-                <button className={`map-day-btn ${dayFilter === null ? 'active' : ''}`} onClick={() => setDayFilter(null)}>All</button>
-                {days.map(d => (
-                  <button key={d} className={`map-day-btn ${dayFilter === d ? 'active' : ''}`} onClick={() => setDayFilter(d)}>Day {d}</button>
-                ))}
+          {tab === 'map' && (
+            <>
+              {detail && (() => {
+                const days = daysFromItems(detail.items);
+                return (
+                  <div className="map-day-filters">
+                    <button className={`map-day-btn ${dayFilter === null ? 'active' : ''}`} onClick={() => setDayFilter(null)}>All</button>
+                    {days.map(d => (
+                      <button key={d} className={`map-day-btn ${dayFilter === d ? 'active' : ''}`} onClick={() => setDayFilter(d)}>Day {d}</button>
+                    ))}
+                  </div>
+                );
+              })()}
+              <div className="map-full">
+                <MapView
+                  markers={mapMarkers.map((p: any, i: number) => ({ lat: p.lat, lng: p.lng, label: `${i+1}. ${p.name}${p.day ? ` (Day ${p.day})` : ''}`, category: p.category, day: p.day }))}
+                  routes={[]}
+                />
               </div>
-            );
-          })()}
-          <div className="map-full">
-            <MapView
-              markers={mapMarkers.map((p: any, i: number) => ({ lat: p.lat, lng: p.lng, label: `${i+1}. ${p.name}${p.day ? ` (Day ${p.day})` : ''}`, category: p.category, day: p.day }))}
-              routes={[]}
-            />
-          </div>
+            </>
+          )}
         </div>
 
         {/* Itinerary Tab */}
