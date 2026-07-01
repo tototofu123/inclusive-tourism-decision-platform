@@ -18,7 +18,7 @@ interface ChatMsg {
 }
 
 interface ItinerarySummary { id: number; user_text: string; created_at: string; stop_count: number }
-interface SessionSummary { id: number; title: string; created_at: string; updated_at: string; msg_count: number }
+interface SessionSummary { id: number; title: string; display_title?: string; created_at: string; updated_at: string; msg_count: number }
 
 interface ItineraryDetail {
   itinerary: { id: number; user_text: string; created_at: string };
@@ -94,7 +94,7 @@ export default function Home() {
   function loadSession(sid: number) {
     fetch(`${API}/sessions/${sid}`).then(r => r.json()).then(data => {
       setSessionId(sid);
-      if (data.session?.title && data.session.title !== 'New Chat') setSessionTitle(data.session.title);
+      if (data.session) setSessionTitle(data.session.display_title || data.session.title || '');
       const loaded: ChatMsg[] = data.messages.map((m: any) => {
         if (m.role === 'user') return { type: 'user' as const, text: m.content, thinking: [] };
         return {
@@ -287,7 +287,7 @@ export default function Home() {
                   {sessions.map(s => (
                     <div key={s.id} onClick={() => loadSession(s.id)} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '.85rem', borderBottom: '1px solid #f0f0f0' }}
                       onMouseEnter={e => (e.currentTarget.style.background = '#f5f5f5')} onMouseLeave={e => (e.currentTarget.style.background = '')}>
-                      <div style={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.title}</div>
+                      <div style={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.display_title || s.title}</div>
                       <div style={{ color: '#888', fontSize: '.75rem' }}>{Math.ceil(s.msg_count / 2)} conv · {new Date(s.updated_at).toLocaleDateString()}</div>
                     </div>
                   ))}

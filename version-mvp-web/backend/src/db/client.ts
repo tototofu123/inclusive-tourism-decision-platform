@@ -75,15 +75,26 @@ export async function createSession(title?: string): Promise<number> {
 }
 
 export async function listSessions() {
-  const r = await query('SELECT s.*, (SELECT COUNT(*) FROM session_messages WHERE session_id=s.id) as msg_count FROM sessions s ORDER BY s.updated_at DESC LIMIT 30');
-  return r.rows;
+  const r = await query(`SELECT s.*,
+    (SELECT COUNT(*) FROM session_messages WHERE session_id=s.id) as msg_count,
+    (SELECT content FROM session_messages WHERE session_id=s.id AND role='user' ORDER BY created_at LIMIT 1) as first_msg
+    FROM sessions s ORDER BY s.updated_at DESC LIMIT 30`);
+  return r.rows.map((row: any) => ({
+    ...row,
+    display_title: row.title && row.title !== 'New Chat' ? row.title :
+      row.first_msg ? (row.first_msg.length > 35 ? row.first_msg.slice(0, 35) + '…' : row.first_msg) : 'New Chat',
+  }));
 }
 
 export async function getSession(id: number) {
   const s = await query('SELECT * FROM sessions WHERE id=$1', [id]);
   if (s.rows.length === 0) return null;
   const msgs = await query('SELECT * FROM session_messages WHERE session_id=$1 ORDER BY created_at', [id]);
-  return { session: s.rows[0], messages: msgs.rows };
+  const row = s.rows[0];
+  const firstMsg = msgs.rows.find((m: any) => m.role === 'user');
+  row.display_title = row.title && row.title !== 'New Chat' ? row.title :
+    firstMsg ? (firstMsg.content.length > 35 ? firstMsg.content.slice(0, 35) + '…' : firstMsg.content) : 'New Chat';
+  return { session: row, messages: msgs.rows };
 }
 
 export async function saveMessage(msg: {
