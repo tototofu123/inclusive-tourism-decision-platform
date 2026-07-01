@@ -4,35 +4,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .header{background:#0070f3;color:white;padding:12px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0}
 .header h1{font-size:1.2rem;font-weight:600}
 .header .subtitle{font-size:0.8rem;opacity:.8}
-.content{flex:1;overflow:hidden;position:relative}
-.tab-content{display:none;height:100%}
-.tab-content.active{display:flex;flex-direction:column;min-height:0}
-.tab-content-padded{overflow-y:auto!important}
-.itinerary-tab{overflow-y:auto}
+.content{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.tab-content{display:none;overflow:hidden}
+.tab-content.active{display:flex;flex-direction:column;flex:1;min-height:0}
 .chat-tab .messages{flex:1;overflow-y:auto;padding:16px}
-.msg{margin-bottom:12px;max-width:92%}
-.msg.user{margin-left:auto}
-.msg.user .bubble{background:#0070f3;color:white;border-radius:16px 16px 4px 16px;padding:10px 14px}
-.msg.bot .bubble{background:white;border:1px solid #e0e0e0;border-radius:16px 16px 16px 4px;padding:10px 14px}
-.msg .bubble{font-size:0.95rem;line-height:1.4}
-.msg .thinking-content{background:#f0f4ff;border-left:3px solid #0070f3;padding:8px 12px;margin-top:6px;border-radius:4px;font-size:0.82rem;color:#555;line-height:1.5;font-family:monospace}
-.msg .thinking-content div:first-child{color:#0070f3;font-weight:500}
-.msg .thinking-content div:last-child{color:#2e7d32;font-weight:500}
-.view-itinerary-link{font-size:0.8rem;color:#0070f3;cursor:pointer;margin-top:4px;display:inline-block}
-.view-itinerary-link:hover{text-decoration:underline}
 .chat-input{display:flex;gap:8px;padding:12px 16px;border-top:1px solid #e0e0e0;background:white;flex-shrink:0}
 .chat-input input{flex:1;padding:10px 16px;border:1px solid #ddd;border-radius:24px;font-size:0.95rem;outline:none}
 .chat-input input:focus{border-color:#0070f3}
 .chat-input button{padding:10px 20px;background:#0070f3;color:white;border:none;border-radius:24px;font-size:0.95rem;cursor:pointer;white-space:nowrap}
 .chat-input button:hover{background:#0051a8}
 .chat-input button:disabled{background:#ccc;cursor:not-allowed}
-.map-tab{display:flex;flex-direction:column}
 .map-tab .map-day-filters{display:flex;gap:6px;padding:8px 16px;background:white;border-bottom:1px solid #e0e0e0;overflow-x:auto;flex-shrink:0}
 .map-day-btn{padding:4px 14px;border:1px solid #d0d8f0;border-radius:14px;background:white;color:#0070f3;cursor:pointer;font-size:0.8rem;white-space:nowrap}
 .map-day-btn.active{background:#0070f3;color:white;border-color:#0070f3}
 .map-tab .map-full{flex:1;min-height:0;overflow:hidden}
 .map-tab .map-full .leaflet-container{height:100%;width:100%}
-.itinerary-tab{padding:12px 16px}
+.itinerary-tab{overflow-y:auto;padding:12px 16px}
 .itin-card{background:white;border:1px solid #e0e0e0;border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer;transition:border-color .2s}
 .itin-card:hover{border-color:#0070f3}
 .itin-card.active{border-color:#0070f3;background:#f0f4ff}
@@ -60,20 +47,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .stop-times{font-size:0.8rem;color:#888;margin-top:2px}
 .stop-cat{font-size:0.75rem;color:#666;background:#f5f5f5;display:inline-block;padding:1px 8px;border-radius:8px;margin-top:4px}
 .stop-walk{font-size:0.78rem;color:#e67e22;margin-top:4px}
-.stop-map-btn{font-size:0.75rem;color:#0070f3;background:none;border:none;cursor:pointer;padding:0;margin-top:4px}
-.stop-map-btn:hover{text-decoration:underline}
 .tabs{display:flex;background:white;border-top:1px solid #e0e0e0;flex-shrink:0}
 .tab{flex:1;text-align:center;padding:10px;cursor:pointer;font-size:0.85rem;color:#888;border:none;background:none;transition:color .2s;position:relative}
 .tab.active{color:#0070f3;font-weight:600}
 .tab.active::after{content:'';position:absolute;bottom:0;left:20%;width:60%;height:3px;background:#0070f3;border-radius:3px 3px 0 0}
 .tab:hover{color:#0070f3}
-
 .welcome{text-align:center;padding:40px 20px;color:#888}
 .welcome h2{font-size:1.3rem;color:#333;margin-bottom:8px}
 .welcome p{font-size:0.9rem;line-height:1.5}
-.suggestions{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:16px}
-.suggestions button{background:#f0f4ff;border:1px solid #d0d8f0;border-radius:20px;padding:8px 16px;font-size:0.85rem;cursor:pointer;color:#0070f3;transition:background .2s}
-.suggestions button:hover{background:#d0d8ff}
 .loading-dots::after{content:'...';animation:dots 1.5s infinite}
 @keyframes dots{0%,20%{content:'.'}40%{content:'..'}60%,100%{content:'...'}}
 .intent-badge{display:inline-block;font-size:0.7rem;padding:2px 8px;border-radius:10px;margin-bottom:4px;font-weight:500}
@@ -81,3 +62,26 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .intent-badge.find_places{background:#fff3e0;color:#e65100}
 .intent-badge.add_to_itinerary{background:#e3f2fd;color:#1565c0}
 .intent-badge.question{background:#f3e5f5;color:#6a1b9a}
+.msg{margin-bottom:12px;max-width:92%}
+.msg.user{margin-left:auto}
+.msg.user .bubble{background:#0070f3;color:white;border-radius:16px 16px 4px 16px;padding:10px 14px}
+.msg.bot .bubble{background:white;border:1px solid #e0e0e0;border-radius:16px 16px 16px 4px;padding:10px 14px}
+.msg .bubble{font-size:0.95rem;line-height:1.4}
+.msg .thinking-content{background:#f0f4ff;border-left:3px solid #0070f3;padding:8px 12px;margin-top:6px;border-radius:4px;font-size:0.82rem;color:#555;line-height:1.5;font-family:monospace}
+.msg .thinking-content div:first-child{color:#0070f3;font-weight:500}
+.msg .thinking-content div:last-child{color:#2e7d32;font-weight:500}
+.thinking-pulse{display:block;width:6px;height:6px;background:#0070f3;border-radius:50%;margin-top:4px;animation:thinkingPulse 1s infinite}
+@keyframes thinkingPulse{0%,100%{opacity:1}50%{opacity:.3}}
+.think-toggle{font-size:.78rem;color:#0070f3;cursor:pointer;margin-top:2px;user-select:none}
+.think-toggle:hover{text-decoration:underline}
+.welcome-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f5f5f5;z-index:1000;padding:20px;text-align:center}
+.welcome-overlay h2{font-size:1.3rem;color:#333;margin-bottom:8px}
+.welcome-overlay p{font-size:.9rem;line-height:1.5;color:#888}
+.msg-places{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.msg-place-tag{background:#e8f0fe;color:#1a73e8;font-size:.75rem;padding:2px 8px;border-radius:10px;white-space:nowrap}
+.msg-actions{display:flex;gap:6px;margin-top:8px}
+.action-btn{border:none;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:.8rem;transition:background .15s}
+.action-btn.primary{background:#0070f3;color:white}
+.action-btn.primary:hover{background:#0051a8}
+.action-btn.secondary{background:#f0f4ff;color:#0070f3;border:1px solid #d0d8f0}
+.action-btn.secondary:hover{background:#e0e8ff}

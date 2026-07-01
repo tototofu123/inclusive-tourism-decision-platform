@@ -21,6 +21,8 @@ export default function MapView({
   const mapRef = useRef<L.Map | null>(null);
   const markerLayer = useRef<L.LayerGroup | null>(null);
   const routeLayer = useRef<L.LayerGroup | null>(null);
+  const userInteracted = useRef(false);
+  const markersKey = useRef('');
 
   useEffect(() => {
     if (!el.current || mapRef.current) return;
@@ -29,26 +31,35 @@ export default function MapView({
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
       maxZoom: 19,
     }).addTo(map);
+    map.on('moveend', () => { userInteracted.current = true; });
+    map.on('zoomend', () => { userInteracted.current = true; });
     mapRef.current = map;
     markerLayer.current = L.layerGroup().addTo(map);
     routeLayer.current = L.layerGroup().addTo(map);
-    return () => { map.remove(); mapRef.current = null; markerLayer.current = null; routeLayer.current = null; };
+    setTimeout(() => map.invalidateSize(), 100);
+    return () => { map.remove(); mapRef.current = null; markerLayer.current = null; routeLayer.current = null; userInteracted.current = false; };
   }, []);
 
   useEffect(() => {
     const ml = markerLayer.current, rl = routeLayer.current, map = mapRef.current;
     if (!ml || !rl || !map) return;
+    map.invalidateSize();
     ml.clearLayers();
     rl.clearLayers();
 
+    const newKey = markers.map(m => `${m.lat},${m.lng}`).join('|');
+    const markersChanged = newKey !== markersKey.current;
+    markersKey.current = newKey;
+
     if (markers.length === 0 && routes.length === 0) {
-      map.setView(KOWLOON_CENTER, 13);
+      if (!userInteracted.current) map.setView(KOWLOON_CENTER, 13);
       return;
     }
 
     const bounds = L.latLngBounds([]);
 
     markers.forEach((m, idx) => {
+      if (m.lat === undefined || m.lng === undefined) return;
       const color = COLORS[m.category || ''] || '#0070f3';
       const icon = L.divIcon({
         className: '',
@@ -68,7 +79,7 @@ export default function MapView({
         const coords = r.geometry.coordinates.map((c: number[]) => [c[1], c[0]] as [number, number]);
         const poly = L.polyline(coords, { color: '#0070f3', weight: 3, opacity: 0.7 });
         rl.addLayer(poly);
-        coords.forEach(c => bounds.extend(c));
+        coords.forEach((c: [number, number]) => bounds.extend(c));
       } else {
         const poly = L.polyline([r.from, r.to], { color: '#0070f3', weight: 2, opacity: 0.4, dashArray: '8,8' });
         rl.addLayer(poly);
@@ -76,7 +87,9 @@ export default function MapView({
       }
     });
 
-    if (bounds.isValid()) map.fitBounds(bounds, { padding: [50, 50] });
+    if (bounds.isValid() && (!userInteracted.current || markersChanged)) {
+      map.fitBounds(bounds, { padding: [50, 50] });
+    }
   }, [markers, routes]);
 
   return <div ref={el} className={className} style={{ height: '100%', width: '100%' }} />;
