@@ -15,38 +15,37 @@ if not exist "%LLAMA_EXE%" set LLAMA_EXE=C:\Users\totot\AppData\Local\Microsoft\
 echo.
 echo === Starting Inclusive Tourism MVP ===
 echo.
-echo Windows Terminal will open with 4 tabs:
+echo Opening 4 windows:
 echo   1. Backend  (port 4000)
 echo   2. Frontend (port 3000)
 echo   3. LLM      (port 8081)
 echo   4. Console
 echo.
 
-if not exist "%LLAMA_EXE%" echo [WARN] llama-server.exe not found. LLM tab will need manual start.
-if "%MODEL_FILE%"=="" echo [WARN] No .gguf model found. LLM tab will need manual start.
-echo.
+:: 1. Backend
+start "BE 4000" cmd /k "cd /d backend && npx tsx src/index.ts"
+timeout /t 4 /nobreak >nul
 
-powershell -noprofile -command ^
-  $root = '%CD%'; ^
-  $beDir = join-path $root 'backend'; ^
-  $feDir = join-path $root 'frontend'; ^
-  $wt = if (Get-Command wt -ErrorAction SilentlyContinue) { 'wt' } else { $null }; ^
-  if (-not $wt) { Write-Host '[FAIL] Windows Terminal not found. Install from MS Store.' -Fore Red; exit 1 }; ^
-  $llamaExe = '%LLAMA_EXE%'; ^
-  $modelFile = '%MODEL_FILE%'; ^
-  if (($llamaExe -ne '') -and ($modelFile -ne '')) { ^
-    & $wt --title 'Backend (4000)' -d "$beDir" cmd /k "npx tsx src/index.ts" `; ^
-         new-tab --title 'Frontend (3000)' -d "$feDir" cmd /k "npx next dev -p 3000" `; ^
-         new-tab --title 'LLM (8081)' -d "$root" cmd /k ""%LLAMA_EXE%" -m "%MODEL_FILE%" --port 8081 -ngl 99" `; ^
-         new-tab --title 'Console' -d "$beDir" cmd /k "echo Inclusive Tourism MVP && echo Backend:4000 Frontend:3000 LLM:8081 && echo. && echo Press Ctrl+C in each tab to stop" ^
-  } else { ^
-    & $wt --title 'Backend (4000)' -d "$beDir" cmd /k "npx tsx src/index.ts" `; ^
-         new-tab --title 'Frontend (3000)' -d "$feDir" cmd /k "npx next dev -p 3000" `; ^
-         new-tab --title 'LLM (8081)' -d "$root" cmd /k "echo LLM skipped - no model found. Run llama-server manually on port 8081." `; ^
-         new-tab --title 'Console' -d "$beDir" cmd /k "echo Inclusive Tourism MVP && echo Backend:4000 Frontend:3000 LLM:8081 && echo. && echo Press Ctrl+C in each tab to stop" ^
-  }
+:: 2. Frontend
+start "FE 3000" cmd /k "cd /d frontend && npx next dev -p 3000"
+timeout /t 4 /nobreak >nul
 
-if %errorlevel% neq 0 (
-  echo [FAILED] Could not start Windows Terminal.
-  pause
+:: 3. LLM
+if exist "%LLAMA_EXE%" (
+  if not "%MODEL_FILE%"=="" (
+    start "LLM 8081" cmd /k ""%LLAMA_EXE%" -m "%MODEL_FILE%" --port 8081 -ngl 99"
+    timeout /t 4 /nobreak >nul
+  ) else (
+    start "LLM 8081" cmd /k "echo No .gguf model found in %LLAMA_MODELS_DIR% && echo. && pause"
+  )
+) else (
+  start "LLM 8081" cmd /k "echo llama-server.exe not found && echo. && pause"
 )
+
+:: 4. Console
+start "MVP Console" cmd /k "echo Inclusive Tourism MVP && echo. && echo Backend:  http://localhost:4000 && echo Frontend: http://localhost:3000 && echo LLM:      http://localhost:8081 && echo. && echo Close these windows to stop services."
+
+echo All services starting in separate windows.
+echo.
+echo Close the windows to stop services.
+echo.
