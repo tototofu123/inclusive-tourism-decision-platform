@@ -1,91 +1,102 @@
 import { Router, Request, Response } from 'express';
 import { processChat } from '../services/agent';
 import { query, saveMessage } from '../db/client';
+import crypto from 'crypto';
 
 const router = Router();
 
-router.post('/chat', async (req: Request, res: Response) => {
-  try {
-    const { text, itineraryId, sessionId } = req.body;
-    if (!text || typeof text !== 'string' || !text.trim()) {
-      res.status(400).json({ error: 'Please provide a message' });
-      return;
-    }
-    const sid = sessionId ? parseInt(sessionId) : undefined;
-    const thinkSteps: string[] = [];
-    const result = await processChat(text.trim(), itineraryId ? parseInt(itineraryId) : undefined, (step: string) => { thinkSteps.push(step); });
-    result.thinking = thinkSteps;
+// In-memory store for async chat processing progress
+interface ProcessState {
+  thinking: string[];
+  done: boolean;
+  result?: any;
+  error?: string;
+}
+const processes = new Map<string, ProcessState>();
 
-    if (sid) {
-      await saveMessage({
-        session_id: sid, role: 'user', content: text.trim(),
-      });
-      await saveMessage({
-        session_id: sid, role: 'assistant', content: result.response,
-        intent: result.intent, thinking: JSON.stringify(thinkSteps),
-        places_json: result.places, itinerary_id: result.itinerary?.id || null,
-      });
-    }
-
-    res.json(result);
-  } catch (err) {
-    const msg = (err as Error).message;
-    console.error('Chat error:', msg);
-    res.status(500).json({
-      thinking: ['Error processing request', msg],
-      intent: 'question',
-      response: msg,
-    });
+// Clean up old processes after 5 minutes
+setInterval(() => {
+  const cutoff = Date.now() - 300000;
+  for (const [id, state] of processes) {
+    if (state.done && parseInt(id.split('-')[0]) < cutoff) processes.delete(id);
   }
-});
+}, 60000);
 
-router.post('/chat/stream', async (req: Request, res: Response) => {
+// POST /chat — starts async processing, returns processId immediately
+router.post('/chat', async (req: Request, res: Response) => {
   const { text, itineraryId, sessionId } = req.body;
   if (!text || typeof text !== 'string' || !text.trim()) {
     res.status(400).json({ error: 'Please provide a message' });
     return;
   }
 
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no');
-  res.flushHeaders();
+  const processId = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+  processes.set(processId, { thinking: [], done: false });
 
-  const send = (event: string, data: any) => {
-    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-  };
+  // Return processId immediately
+  res.json({ processId });
 
+  // Background processing
   try {
     const sid = sessionId ? parseInt(sessionId) : undefined;
-    const thinkSteps: string[] = [];
 
-    const result = await processChat(text.trim(), itineraryId ? parseInt(itineraryId) : undefined, (step: string) => {
-      thinkSteps.push(step);
-      send('think', { step, index: thinkSteps.length - 1 });
-    });
+    const result = await processChat(
+      text.trim(),
+      itineraryId ? parseInt(itineraryId) : undefined,
+      (step: string) => {
+        const state = processes.get(processId);
+        if (state) state.thinking.push(step);
+      }
+    );
 
-    result.thinking = thinkSteps;
+    const state = processes.get(processId);
+    if (state) {
+      state.thinking = result.thinking || state.thinking;
+      state.result = result;
+      state.done = true;
+    }
 
     if (sid) {
-      await saveMessage({
-        session_id: sid, role: 'user', content: text.trim(),
-      });
+      await saveMessage({ session_id: sid, role: 'user', content: text.trim() });
       await saveMessage({
         session_id: sid, role: 'assistant', content: result.response,
-        intent: result.intent, thinking: JSON.stringify(thinkSteps),
+        intent: result.intent, thinking: JSON.stringify(result.thinking || state?.thinking || []),
         places_json: result.places, itinerary_id: result.itinerary?.id || null,
       });
     }
-
-    send('result', result);
   } catch (err) {
     const msg = (err as Error).message;
-    console.error('Chat stream error:', msg);
-    send('error', { message: msg });
+    console.error('Chat error:', msg);
+    const state = processes.get(processId);
+    if (state) {
+      state.error = msg;
+      state.done = true;
+    }
   }
+});
 
-  res.end();
+// GET /chat/status/:processId — poll for current state
+router.get('/chat/status/:processId', (req: Request, res: Response) => {
+  const pid = req.params.processId as string;
+  const state = processes.get(pid);
+  if (!state) {
+    res.status(404).json({ error: 'Process not found', done: true });
+    return;
+  }
+  // Return minimal state — strip result until done to save bandwidth
+  if (state.done) {
+    res.json({
+      thinking: state.thinking,
+      done: true,
+      result: state.result || undefined,
+      error: state.error,
+    });
+  } else {
+    res.json({
+      thinking: state.thinking,
+      done: false,
+    });
+  }
 });
 
 router.get('/itineraries', async (_req: Request, res: Response) => {

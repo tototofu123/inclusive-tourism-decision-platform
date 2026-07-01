@@ -131,49 +131,85 @@ export default function Home() {
       setSessionId(sid);
     }
 
+    let processId: string | null = null;
     try {
-      const res = await fetch(`${API}/chat`, {
+      // 1. Start processing — returns processId immediately
+      const startRes = await fetch(`${API}/chat`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: text.trim(), itineraryId: currentItineraryId ?? null, sessionId: sid }),
       });
-      if (!res.ok) {
-        const errBody = await res.text().catch(() => '');
-        throw new Error(errBody || `HTTP ${res.status}`);
+      if (!startRes.ok) {
+        const errBody = await startRes.text().catch(() => '');
+        throw new Error(errBody || `HTTP ${startRes.status}`);
       }
-      const result = await res.json();
+      const startData = await startRes.json();
+      processId = startData.processId;
+      if (!processId) throw new Error('No processId returned');
 
-      const thinkSteps = result.thinking || [];
-      const places = result.places || [];
-      setCurrentPlaces(places);
-      if (result.itinerary?.id) setCurrentItineraryId(result.itinerary.id);
-
-      setMsgs(x => {
-        const copy = [...x];
-        const idx = copy.length - 1;
-        if (idx >= 0 && copy[idx].type === 'bot') {
-          copy[idx] = {
-            ...copy[idx],
-            text: result.response,
-            thinking: thinkSteps,
-            done: true,
-            intent: result.intent,
-            places,
-            itineraryId: result.itinerary?.id,
-          };
+      // 2. Poll for status updates every 400ms
+      let done = false;
+      while (!done) {
+        await new Promise(r => setTimeout(r, 400));
+        const statusRes = await fetch(`${API}/chat/status/${processId}`);
+        if (!statusRes.ok) {
+          done = true;
+          throw new Error('Status endpoint failed');
         }
-        return copy;
-      });
+        const status = await statusRes.json();
 
-      if (result.allItineraries) setItineraries(result.allItineraries);
-      if (result.itinerary?.id) fetchDetail(result.itinerary.id);
+        // Update thinking steps in real-time
+        if (status.thinking?.length) {
+          setMsgs(x => {
+            const copy = [...x];
+            const idx = copy.length - 1;
+            if (idx >= 0 && copy[idx].type === 'bot') {
+              copy[idx] = { ...copy[idx], thinking: [...status.thinking] };
+            }
+            return copy;
+          });
+        }
 
-      if (!sessionTitle) {
-        const days = result.itinerary?.stops?.length ? Math.max(...result.itinerary.stops.map((s: any) => s.day || 1)) : 0;
-        setSessionTitle(genTitle(result.intent, days, places.length));
+        if (status.done) {
+          done = true;
+          const result = status.result;
+          const error = status.error;
+
+          if (error) throw new Error(error);
+          if (!result) throw new Error('No result returned');
+
+          const places = result.places || [];
+          setCurrentPlaces(places);
+          if (result.itinerary?.id) setCurrentItineraryId(result.itinerary.id);
+
+          setMsgs(x => {
+            const copy = [...x];
+            const idx = copy.length - 1;
+            if (idx >= 0 && copy[idx].type === 'bot') {
+              copy[idx] = {
+                ...copy[idx],
+                text: result.response,
+                thinking: status.thinking || [],
+                done: true,
+                intent: result.intent,
+                places,
+                itineraryId: result.itinerary?.id,
+              };
+            }
+            return copy;
+          });
+
+          if (result.allItineraries) setItineraries(result.allItineraries);
+          if (result.itinerary?.id) fetchDetail(result.itinerary.id);
+
+          if (!sessionTitle) {
+            const days = result.itinerary?.stops?.length ? Math.max(...result.itinerary.stops.map((s: any) => s.day || 1)) : 0;
+            setSessionTitle(genTitle(result.intent, days, places.length));
+          }
+
+          fetch(`${API}/places`).then(r => r.json()).then(d => { setStoredPlaces(d.places || []); setPlacesTotal(d.total || 0); }).catch(() => {});
+          fetchSessions();
+        }
       }
-
-      fetch(`${API}/places`).then(r => r.json()).then(d => { setStoredPlaces(d.places || []); setPlacesTotal(d.total || 0); }).catch(() => {});
-      fetchSessions();
     } catch (e) {
       const errMsg = (e as Error).message;
       setMsgs(x => {
