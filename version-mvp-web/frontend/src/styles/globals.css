@@ -5,9 +5,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .header h1{font-size:1.2rem;font-weight:600}
 .header .subtitle{font-size:0.8rem;opacity:.8}
 .content{flex:1;overflow:hidden;position:relative}
-.tab-content{display:none;height:100%;overflow-y:auto}
+.tab-content{display:none;height:100%}
 .tab-content.active{display:flex;flex-direction:column;min-height:0}
 .tab-content-padded{overflow-y:auto!important}
+.itinerary-tab{overflow-y:auto}
 .chat-tab .messages{flex:1;overflow-y:auto;padding:16px}
 .msg{margin-bottom:12px;max-width:92%}
 .msg.user{margin-left:auto}
