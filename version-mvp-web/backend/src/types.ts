@@ -4,6 +4,7 @@ export interface ChatResponse {
   thinking: string[];
   intent: Intent;
   response: string;
+  sessionTitle?: string;
   places?: Place[];
   itinerary?: {
     id: number;

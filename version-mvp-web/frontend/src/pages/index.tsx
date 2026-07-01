@@ -201,9 +201,8 @@ export default function Home() {
           if (result.allItineraries) setItineraries(result.allItineraries);
           if (result.itinerary?.id) fetchDetail(result.itinerary.id);
 
-          if (!sessionTitle) {
-            const days = result.itinerary?.stops?.length ? Math.max(...result.itinerary.stops.map((s: any) => s.day || 1)) : 0;
-            setSessionTitle(genTitle(result.intent, days, places.length));
+          if (result.sessionTitle && !sessionTitle) {
+            setSessionTitle(result.sessionTitle);
           }
 
           fetch(`${API}/places`).then(r => r.json()).then(d => { setStoredPlaces(d.places || []); setPlacesTotal(d.total || 0); }).catch(() => {});
@@ -367,7 +366,8 @@ export default function Home() {
                 )}
 
                 {/* Content area */}
-                {!m.done && m.thinking.length === 0 && (
+                {m.type === 'user' && <div className="bubble">{m.text}</div>}
+                {m.type === 'bot' && !m.done && m.thinking.length === 0 && (
                   <div className="bubble"><span className="loading-dots">Thinking</span></div>
                 )}
                 {m.done && (

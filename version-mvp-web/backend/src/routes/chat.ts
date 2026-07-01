@@ -3,6 +3,20 @@ import { processChat } from '../services/agent';
 import { query, saveMessage } from '../db/client';
 import crypto from 'crypto';
 
+function genSessionTitle(text: string, intent?: string): string {
+  const t = text.toLowerCase();
+  let label = 'Chat';
+  if (intent === 'create_itinerary') {
+    const dayMatch = t.match(/(\d+)\s*day/);
+    const days = dayMatch ? dayMatch[1] : '';
+    label = days ? `Plan ${days}-day trip` : 'Plan trip';
+  } else if (intent === 'find_places') label = 'Find places';
+  else if (intent === 'modify_itinerary') label = 'Edit itinerary';
+  else label = 'Ask a question';
+  const short = text.length > 30 ? text.slice(0, 30).trim() + '…' : text;
+  return `${label}: ${short}`;
+}
+
 const router = Router();
 
 // In-memory store for async chat processing progress
@@ -49,20 +63,27 @@ router.post('/chat', async (req: Request, res: Response) => {
       }
     );
 
-    const state = processes.get(processId);
-    if (state) {
-      state.thinking = result.thinking || state.thinking;
-      state.result = result;
-      state.done = true;
-    }
-
     if (sid) {
+      // Update session title if still default
+      const sess = await query('SELECT title FROM sessions WHERE id=$1', [sid]);
+      if (sess.rows.length > 0 && (sess.rows[0].title === 'New Chat' || !sess.rows[0].title)) {
+        const newTitle = genSessionTitle(text.trim(), result.intent);
+        await query('UPDATE sessions SET title=$1 WHERE id=$2', [newTitle, sid]);
+        result.sessionTitle = newTitle;
+      }
       await saveMessage({ session_id: sid, role: 'user', content: text.trim() });
       await saveMessage({
         session_id: sid, role: 'assistant', content: result.response,
-        intent: result.intent, thinking: JSON.stringify(result.thinking || state?.thinking || []),
+        intent: result.intent, thinking: JSON.stringify(result.thinking || []),
         places_json: result.places, itinerary_id: result.itinerary?.id || null,
       });
+    }
+
+    const pState = processes.get(processId);
+    if (pState) {
+      pState.thinking = result.thinking || pState.thinking;
+      pState.result = result;
+      pState.done = true;
     }
   } catch (err) {
     const msg = (err as Error).message;
