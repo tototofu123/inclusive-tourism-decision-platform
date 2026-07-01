@@ -94,6 +94,7 @@ export default function Home() {
   function loadSession(sid: number) {
     fetch(`${API}/sessions/${sid}`).then(r => r.json()).then(data => {
       setSessionId(sid);
+      if (data.session?.title && data.session.title !== 'New Chat') setSessionTitle(data.session.title);
       const loaded: ChatMsg[] = data.messages.map((m: any) => {
         if (m.role === 'user') return { type: 'user' as const, text: m.content, thinking: [] };
         return {
@@ -287,7 +288,7 @@ export default function Home() {
                     <div key={s.id} onClick={() => loadSession(s.id)} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '.85rem', borderBottom: '1px solid #f0f0f0' }}
                       onMouseEnter={e => (e.currentTarget.style.background = '#f5f5f5')} onMouseLeave={e => (e.currentTarget.style.background = '')}>
                       <div style={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.title}</div>
-                      <div style={{ color: '#888', fontSize: '.75rem' }}>{s.msg_count} msgs · {new Date(s.updated_at).toLocaleDateString()}</div>
+                      <div style={{ color: '#888', fontSize: '.75rem' }}>{Math.ceil(s.msg_count / 2)} conv · {new Date(s.updated_at).toLocaleDateString()}</div>
                     </div>
                   ))}
                 </div>
@@ -368,7 +369,18 @@ export default function Home() {
                 {/* Content area */}
                 {m.type === 'user' && <div className="bubble">{m.text}</div>}
                 {m.type === 'bot' && !m.done && m.thinking.length === 0 && (
-                  <div className="bubble"><span className="loading-dots">Thinking</span></div>
+                  <div className="bubble thinking-fake">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span className="loading-dots">Thinking</span>
+                      <span style={{ color: '#e74c3c', fontSize: '.75rem', fontWeight: 500 }}>FAKE UI</span>
+                    </div>
+                    <div style={{ marginTop: 6, fontSize: '.75rem', color: '#e74c3c', lineHeight: 1.5 }}>
+                      <div>⏱ Estimated: ~30-60s &nbsp;|&nbsp; Max: 120s</div>
+                      <div style={{ marginTop: 4, height: 4, background: '#fde8e8', borderRadius: 2, overflow: 'hidden' }}>
+                        <div className="thinking-progress-bar" />
+                      </div>
+                    </div>
+                  </div>
                 )}
                 {m.done && (
                   <>

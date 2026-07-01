@@ -88,7 +88,7 @@ export default function MapView({
     });
 
     if (bounds.isValid() && (!userInteracted.current || markersChanged)) {
-      map.fitBounds(bounds, { padding: [50, 50] });
+      map.fitBounds(bounds, { padding: [80, 80], maxZoom: 15 });
     }
   }, [markers, routes]);
 
