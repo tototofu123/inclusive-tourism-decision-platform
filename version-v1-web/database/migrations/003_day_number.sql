@@ -1,0 +1,1 @@
+ALTER TABLE itinerary_items ADD COLUMN IF NOT EXISTS day_number INTEGER DEFAULT 1;
