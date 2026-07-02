@@ -1,16 +1,17 @@
 import { LLMResponse } from '../types';
 import { chatCompletion } from './apiClient';
 
-const PROMPT = `You are a Kowloon (Hong Kong) trip planner for accessible tourism. Output only valid JSON, no extra text.
+const PROMPT = `You are a Hong Kong trip planner for accessible tourism. Output only valid JSON, no extra text.
 
 Rules:
-- Region is always Kowloon, Hong Kong
-- Categories: museum, cafe, park, temple, shopping_mall, viewpoint, restaurant, market, art_gallery, historic_site
+- Regions: Kowloon, Hong Kong Island, New Territories — use ALL three for Hong Kong trips
+- Categories: museum, cafe, park, temple, shopping_mall, viewpoint, restaurant, market, art_gallery, historic_site, hotel
 - Each stop: 20-120 min duration
 - Detect days from user request. If unspecified, use 1 day.
 - DAYS = total days in the trip
 - Assign each stop to a day (1-indexed) — max 4 stops per day, spread stops across all days evenly
 - If user mentions focus areas (e.g. "culture", "shopping", "nature"), prioritize matching categories
+- Include hotel/lodging recommendations if user asks where to stay
 
 Output format:
 {"stops":[{"label":"Place Name","category":"museum","approx_duration_minutes":60,"day":1,"notes":"accessibility note"}],"total_duration_minutes":300,"days":1,"focus_areas":["culture","history"]}`;

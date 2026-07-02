@@ -17,6 +17,7 @@ const CATEGORY_OVERPASS: Record<string, string> = {
   market: 'node["amenity"="marketplace"]',
   art_gallery: 'node["tourism"="gallery"]',
   historic_site: 'node["historic"~"."]',
+  hotel: 'node["tourism"="hotel"]',
 };
 
 const FALLBACK_CATEGORIES: Record<string, string[]> = {
@@ -30,6 +31,7 @@ const FALLBACK_CATEGORIES: Record<string, string[]> = {
   market: ['marketplace'],
   art_gallery: ['gallery'],
   historic_site: ['historic', 'monument'],
+  hotel: ['hotel'],
 };
 
 const CATEGORY_PLACE_TYPE: Record<string, string> = {

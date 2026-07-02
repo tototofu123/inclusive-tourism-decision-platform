@@ -244,33 +244,42 @@ async function searchPlaces(query_text: string, region: string, budget: string, 
   if (t.includes('restaurant') || t.includes('food') || t.includes('eat')) categories.push('restaurant');
   if (t.includes('park') || t.includes('garden') || t.includes('nature')) categories.push('park');
   if (t.includes('temple') || t.includes('church')) categories.push('temple');
-  if (t.includes('mall') || t.includes('shop')) categories.push('shopping_mall');
+  if (t.includes('mall') || t.includes('shop') || t.includes('store')) categories.push('shopping_mall');
   if (t.includes('view') || t.includes('harbour') || t.includes('waterfront')) categories.push('viewpoint');
   if (t.includes('market')) categories.push('market');
   if (t.includes('art') || t.includes('gallery')) categories.push('art_gallery');
   if (t.includes('historic') || t.includes('heritage')) categories.push('historic_site');
-  if (categories.length === 0) categories.push('museum', 'cafe', 'restaurant', 'park', 'temple', 'shopping_mall', 'viewpoint', 'market', 'art_gallery', 'historic_site');
+  if (t.includes('hotel') || t.includes('accommodation') || t.includes('lodging') || t.includes('live') || t.includes('stay') || t.includes('hostel')) categories.push('hotel');
+  if (categories.length === 0) categories.push('museum', 'cafe', 'restaurant', 'park', 'temple', 'shopping_mall', 'viewpoint', 'market', 'art_gallery', 'historic_site', 'hotel');
 
   const catMsg = `Looking for categories: ${categories.join(', ')}`;
   emit(catMsg); th.push(catMsg);
 
+  // Normalize region: "Hong Kong" or "hong_kong" → search all regions
+  const dbRegion = (region || '').toLowerCase().replace(/\s+/g, '_');
+  const resolvedRegion = (dbRegion === 'hong_kong' || dbRegion === 'all' || dbRegion === '') ? undefined : dbRegion;
+
   const stops: LLMStop[] = categories.map(c => ({ label: c, category: c, approx_duration_minutes: 60, notes: '' }));
-  const places = await resolveStops(stops, region, budget);
+  const places = await resolveStops(stops, resolvedRegion, budget);
 
   const foundMsg = `Found ${places.length} places in ${regionLabel}`;
   emit(foundMsg); th.push(foundMsg);
 
-  const names = places.map(p => `- ${p.label}`).join('\n');
+  const filtered = places.filter(p => !p.label.match(/^[a-z_]+ \(Kowloon\)$/));
+  const names = filtered.length > 0 ? filtered.map(p => `- ${p.label}`).join('\n') : '(no curated places found for this search)';
   return {
-    response: `I found ${places.length} place${places.length !== 1 ? 's' : ''} in ${regionLabel}:\n${names}`,
+    response: `I found ${filtered.length} place${filtered.length !== 1 ? 's' : ''} in ${regionLabel}:\n${names}`,
     thinking: th,
-    places: places.map(p => ({ id: p.placeId, name: p.label, lat: p.lat, lng: p.lng, category: categories[places.indexOf(p)] || 'attraction' })),
+    places: filtered.length > 0
+      ? filtered.map((p, i) => ({ id: p.placeId, name: p.label, lat: p.lat, lng: p.lng, category: categories[i] || 'attraction' }))
+      : places.map((p, i) => ({ id: p.placeId, name: p.label, lat: p.lat, lng: p.lng, category: categories[i] || 'attraction' })),
   };
 }
 
-async function createItineraryTool(days: number, preferences: string, emit: EmitFn, existingId?: number): Promise<ToolResult> {
+async function createItineraryTool(days: number, preferences: string, emit: EmitFn, existingId?: number, region?: string): Promise<ToolResult> {
   const th: string[] = [];
-  const planMsg = `Planning a Kowloon trip based on: "${preferences}"`;
+  const regionLabel = (region || 'kowloon').replace(/_/g, ' ');
+  const planMsg = `Planning a ${regionLabel} trip based on: "${preferences}"`;
   emit(planMsg); th.push(planMsg);
 
   let context: string | undefined;
@@ -284,7 +293,7 @@ async function createItineraryTool(days: number, preferences: string, emit: Emit
   const searchMsg = `Searching for places: ${categories.join(', ')}`;
   emit(searchMsg); th.push(searchMsg);
 
-  let resolved = await resolveStops(llmPlan.stops, 'kowloon');
+  let resolved = await resolveStops(llmPlan.stops, region);
   const foundMsg = `Found ${resolved.length} accessible places for your trip`;
   emit(foundMsg); th.push(foundMsg);
 
@@ -293,7 +302,7 @@ async function createItineraryTool(days: number, preferences: string, emit: Emit
   emit(reorderMsg); th.push(reorderMsg);
 
   const actualDays = Math.max(days || 1, llmPlan.days || 1);
-  const itineraryId = await saveItinerary(preferences, 'Kowloon');
+  const itineraryId = await saveItinerary(preferences, regionLabel);
   const stops: Array<{ label: string; placeId: number; startTime: string; endTime: string; lat: number; lng: number; day: number; distance: number }> = [];
   let currentDay = 1, hour = 9;
 
@@ -329,7 +338,7 @@ async function createItineraryTool(days: number, preferences: string, emit: Emit
 
   const all = await query('SELECT id, user_text, created_at FROM itineraries ORDER BY created_at DESC LIMIT 20');
   return {
-    response: `Planned a ${actualDays}-day Kowloon itinerary with ${stops.length} stops. Open the Itinerary tab to see the full day-by-day plan with walking times.`,
+    response: `Planned a ${actualDays}-day ${regionLabel} itinerary with ${stops.length} stops. Open the Itinerary tab to see the full day-by-day plan with walking times.`,
     thinking: th,
     places: resolved.map(p => ({ id: p.placeId, name: p.label, lat: p.lat, lng: p.lng })),
     itinerary: { id: itineraryId, stops },
@@ -666,7 +675,8 @@ export async function executeTool(name: string, args: any, emit: EmitFn): Promis
         parseInt(firstOf(args, 'days', 'num_days', 'number_of_days')) || 1,
         firstOf(args, 'preferences', 'preference', 'interests', 'interest', 'theme', 'description') || 'general Kowloon trip',
         emit,
-        firstOf(args, 'existing_itinerary_id', 'itinerary_id')
+        firstOf(args, 'existing_itinerary_id', 'itinerary_id'),
+        firstOf(args, 'region', 'area') || 'kowloon'
       );
     case 'edit_itinerary': return editItineraryTool(firstOf(args, 'itinerary_id', 'id'), firstOf(args, 'changes', 'action', 'modification'), emit);
     case 'get_itinerary': return getItineraryTool(firstOf(args, 'itinerary_id', 'id', 'trip_id'));
