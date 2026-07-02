@@ -1,6 +1,6 @@
-# Database – Web MVP
+# Database – V1
 
-This document describes the PostgreSQL schema and usage for the Web MVP.
+This document describes the PostgreSQL schema and usage for V1.
 
 ## Tables
 

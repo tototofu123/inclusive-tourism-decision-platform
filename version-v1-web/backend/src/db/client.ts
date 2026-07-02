@@ -65,7 +65,8 @@ export async function getFullItinerary(id: number) {
   const itin = await query('SELECT * FROM itineraries WHERE id=$1', [id]);
   if (itin.rows.length === 0) return null;
   const items = await query(
-    `SELECT ii.*, p.name as place_name, p.lat, p.lng, p.category, p.description
+    `SELECT ii.*, p.name as place_name, p.lat, p.lng, p.category, p.description,
+            p.accessibility_score, p.accessibility_tags
      FROM itinerary_items ii JOIN places p ON ii.place_id = p.id WHERE ii.itinerary_id=$1 ORDER BY ii.stop_index`, [id]
   );
   const totals = await query(

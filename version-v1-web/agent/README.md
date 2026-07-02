@@ -1,9 +1,9 @@
-# Agent – Web MVP
+# Agent – V1
 
-This document defines the main agent behaviour for the Web MVP and how it interacts with the rest of the system.
+This document defines the main agent behaviour for V1 and how it interacts with the rest of the system.
 
 ## Planning Agent
-The Web MVP uses a single primary agent: the **Planning Agent**.
+V1 uses a single primary agent: the **Planning Agent**.
 
 ### Responsibilities
 - Accept raw user text describing a trip (e.g. "3 hours in Kowloon, I like museums and cafes").
@@ -16,9 +16,9 @@ The Web MVP uses a single primary agent: the **Planning Agent**.
 - `text`: free-form user description of desired trip.
 - Optional internal context:
   - Default assumptions (e.g. 3–5 stops, 30–90 minutes per stop).
-  - Region fixed to Kowloon for MVP.
+  - Region can be Kowloon, Hong Kong Island, or New Territories.
 
-### Output JSON Schema (MVP)
+### Output JSON Schema (V1)
 The agent should output JSON with this structure:
 
 ```json
@@ -54,4 +54,4 @@ The backend later maps `category` to real places using place APIs.
 - Caveman-style: keep prompts short and direct, avoid overthinking or over-technical wording.
 - Ponytail-style: tidy the JSON, enforce schema, and strip any extra commentary.
 
-Later versions may split this into multiple specialised agents, but MVP uses just this single Planning Agent.
+V1 evolved to support 12 tool-calling functions (search, create, edit, delete, route, transport, etc.) with the LLM acting as a multi-round reasoning agent.

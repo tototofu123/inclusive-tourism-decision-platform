@@ -3,6 +3,7 @@ import { resolveStops } from './placeResolver';
 import { getRoute } from './routingService';
 import { planTrip } from './llmGateway';
 import { getAccessibility } from './accessibilityService';
+import { searchBySemantic } from './ragService';
 import { LLMStop } from '../types';
 
 export interface ToolResult {
@@ -250,6 +251,8 @@ async function searchPlaces(query_text: string, region: string, budget: string, 
   if (t.includes('art') || t.includes('gallery')) categories.push('art_gallery');
   if (t.includes('historic') || t.includes('heritage')) categories.push('historic_site');
   if (t.includes('hotel') || t.includes('accommodation') || t.includes('lodging') || t.includes('live') || t.includes('stay') || t.includes('hostel')) categories.push('hotel');
+
+  const hasSpecificCategory = categories.length > 0;
   if (categories.length === 0) categories.push('museum', 'cafe', 'restaurant', 'park', 'temple', 'shopping_mall', 'viewpoint', 'market', 'art_gallery', 'historic_site', 'hotel');
 
   const catMsg = `Looking for categories: ${categories.join(', ')}`;
@@ -262,16 +265,46 @@ async function searchPlaces(query_text: string, region: string, budget: string, 
   const stops: LLMStop[] = categories.map(c => ({ label: c, category: c, approx_duration_minutes: 60, notes: '' }));
   const places = await resolveStops(stops, resolvedRegion, budget);
 
+  // If keyword matching was generic, supplement with semantic search for natural-language queries
+  let semanticPlaces: any[] = [];
+  if (!hasSpecificCategory && query_text.length > 5) {
+    const semMsg = `Trying semantic search for: "${query_text}"`;
+    emit(semMsg); th.push(semMsg);
+    try {
+      const results = await searchBySemantic(query_text, 8);
+      semanticPlaces = results
+        .filter((r: any) => {
+          const n = r.name || '';
+          return !n.match(/^[a-z_]+ \(Kowloon\)$/);
+        })
+        .map((r: any) => ({
+          placeId: r.id,
+          label: r.name,
+          lat: r.lat,
+          lng: r.lng,
+          category: r.category || 'attraction',
+          similarity: r.similarity,
+        }));
+      const semFoundMsg = `Semantic search added ${semanticPlaces.length} relevant places`;
+      emit(semFoundMsg); th.push(semFoundMsg);
+    } catch (err: any) {
+      console.error('Semantic search failed:', err.message);
+    }
+  }
+
   const foundMsg = `Found ${places.length} places in ${regionLabel}`;
   emit(foundMsg); th.push(foundMsg);
 
   const filtered = places.filter(p => !p.label.match(/^[a-z_]+ \(Kowloon\)$/));
-  const names = filtered.length > 0 ? filtered.map(p => `- ${p.label}`).join('\n') : '(no curated places found for this search)';
+  const allPlaces = semanticPlaces.length > 0
+    ? [...semanticPlaces, ...filtered].filter((p, i, a) => a.findIndex(x => x.placeId === p.placeId) === i)
+    : filtered;
+  const names = allPlaces.length > 0 ? allPlaces.map(p => `- ${p.label}`).join('\n') : '(no curated places found for this search)';
   return {
-    response: `I found ${filtered.length} place${filtered.length !== 1 ? 's' : ''} in ${regionLabel}:\n${names}`,
+    response: `I found ${allPlaces.length} place${allPlaces.length !== 1 ? 's' : ''} in ${regionLabel}:\n${names}`,
     thinking: th,
-    places: filtered.length > 0
-      ? filtered.map((p, i) => ({ id: p.placeId, name: p.label, lat: p.lat, lng: p.lng, category: categories[i] || 'attraction' }))
+    places: allPlaces.length > 0
+      ? allPlaces.map((p, i) => ({ id: p.placeId, name: p.label, lat: p.lat, lng: p.lng, category: p.category || 'attraction' }))
       : places.map((p, i) => ({ id: p.placeId, name: p.label, lat: p.lat, lng: p.lng, category: categories[i] || 'attraction' })),
   };
 }

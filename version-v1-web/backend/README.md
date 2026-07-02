@@ -1,6 +1,6 @@
-# Backend – Web MVP
+# Backend – V1
 
-This document describes the backend API service for the Web MVP.
+This document describes the backend API service for V1.
 
 ## Tech Stack
 - Node.js + TypeScript.

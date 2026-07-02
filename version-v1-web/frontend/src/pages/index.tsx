@@ -39,6 +39,8 @@ interface ItineraryDetail {
     road_distance_meters: number; lat: number; lng: number; category: string;
     day_number: number; description?: string;
     confirmed?: boolean; entry_cost?: number; transport_cost?: number; transport_mode?: string;
+    route_geometry_json?: { type: string; coordinates: number[][] };
+    accessibility_score?: number; accessibility_tags?: string[];
   }>;
   costSummary?: { totalTransport: number; totalEntry: number; totalAll: number };
 }
@@ -61,6 +63,7 @@ export default function Home() {
   const [detail, setDetail] = useState<ItineraryDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [dayFilter, setDayFilter] = useState<number | null>(null);
+  const [mapRoutes, setMapRoutes] = useState<{ from: [number,number]; to: [number,number]; geometry?: any; distance: number }[]>([]);
   const [placesLoading, setPlacesLoading] = useState(true);
   const [placesView, setPlacesView] = useState<'map' | 'list'>('map');
   const [regionFilter, setRegionFilter] = useState('');
@@ -101,6 +104,23 @@ export default function Home() {
   }
 
   useEffect(() => { if (sessionId) loadPrefs(sessionId); }, [sessionId]);
+
+  useEffect(() => {
+    if (!detail) { setMapRoutes([]); return; }
+    const routes: { from: [number,number]; to: [number,number]; geometry?: any; distance: number }[] = [];
+    for (let i = 1; i < detail.items.length; i++) {
+      const prev = detail.items[i-1], cur = detail.items[i];
+      if (prev.lat && prev.lng && cur.lat && cur.lng) {
+        routes.push({
+          from: [prev.lat, prev.lng],
+          to: [cur.lat, cur.lng],
+          geometry: cur.route_geometry_json,
+          distance: cur.road_distance_meters || 0,
+        });
+      }
+    }
+    setMapRoutes(routes);
+  }, [detail]);
 
   async function savePrefs() {
     if (!sessionId) return;
@@ -343,10 +363,18 @@ export default function Home() {
   return (
     <div className="app">
       <div className="header">
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h1>{sessionTitle || 'Inclusive Tourism'}</h1>
-          {sessionTitle && <div className="subtitle">Kowloon Explorer Agent</div>}
-        </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h1>{sessionTitle || 'Inclusive Tourism'}</h1>
+            {sessionTitle && <div className="subtitle">Kowloon Explorer Agent</div>}
+            {(prefs.mobility || prefs.interests || prefs.budget_level || prefs.home_base) && (
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
+                {prefs.mobility && <span className="pref-badge">♿ {prefs.mobility}</span>}
+                {prefs.budget_level && <span className="pref-badge">💰 {prefs.budget_level}</span>}
+                {prefs.home_base && <span className="pref-badge">📍 {prefs.home_base}</span>}
+                {prefs.interests && <span className="pref-badge">🏷 {prefs.interests.slice(0, 30)}{prefs.interests.length > 30 ? '…' : ''}</span>}
+              </div>
+            )}
+          </div>
 
         {tab === 'chat' && (
           <>
@@ -375,12 +403,49 @@ export default function Home() {
               <button onClick={() => setShowPrefs(x => !x)} style={{ background: 'rgba(255,255,255,.15)', border: '1px solid rgba(255,255,255,.3)', color: 'white', padding: '6px 10px', borderRadius: 6, cursor: 'pointer', fontSize: '.75rem', whiteSpace: 'nowrap' }}>
                 {Object.values(prefs).some(v => v) ? '★' : ''} Prefs
               </button>
-              {showPrefs && (<div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, width: 300, background: 'white', border: '1px solid #e0e0e0', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,.15)', zIndex: 999, padding: 16 }}>
-                <div style={{ fontWeight: 600, marginBottom: 12, color: '#000' }}>Preferences</div>
-                <input placeholder="Mobility (e.g. wheelchair user)" value={prefs.mobility} onChange={e => setPrefs(x => ({...x, mobility: e.target.value}))} style={{ width: '100%', marginBottom: 8, padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: '.82rem', boxSizing: 'border-box' }} />
-                <input placeholder="Interests (comma separated)" value={prefs.interests} onChange={e => setPrefs(x => ({...x, interests: e.target.value}))} style={{ width: '100%', marginBottom: 8, padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: '.82rem', boxSizing: 'border-box' }} />
+              {showPrefs && (<div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, width: 340, background: 'white', border: '1px solid #e0e0e0', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,.15)', zIndex: 999, padding: 16, maxHeight: 420, overflow: 'auto' }}>
+                <div style={{ fontWeight: 600, marginBottom: 12, color: '#000' }}>My Preferences</div>
+
+                <div style={{ fontSize: '.75rem', color: '#888', marginBottom: 4 }}>Walking Speed</div>
+                <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
+                  {['slow', 'moderate', 'fast'].map(s => (
+                    <button key={s} onClick={() => setPrefs(x => ({...x, mobility: s}))}
+                      style={{ flex: 1, padding: '5px 0', border: prefs.mobility === s ? '2px solid #0070f3' : '1px solid #ddd', borderRadius: 6, cursor: 'pointer', fontSize: '.75rem', background: prefs.mobility === s ? '#e8f0fe' : 'white', fontWeight: prefs.mobility === s ? 600 : 400 }}>
+                      {s === 'slow' ? '🐢 Slow' : s === 'moderate' ? '🚶 Moderate' : '🏃 Fast'}
+                    </button>
+                  ))}
+                </div>
+
+                <div style={{ fontSize: '.75rem', color: '#888', marginBottom: 4 }}>Crowd Tolerance</div>
+                <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
+                  {[{v: 'low', l: 'Quiet'}, {v: 'medium', l: 'Normal'}, {v: 'high', l: 'Busy'}].map(({v, l}) => (
+                    <button key={v} onClick={() => setPrefs(x => ({...x, mobility: x.mobility === v ? '' : v}))}
+                      style={{ flex: 1, padding: '5px 0', border: prefs.mobility === v ? '2px solid #0070f3' : '1px solid #ddd', borderRadius: 6, cursor: 'pointer', fontSize: '.75rem', background: prefs.mobility === v ? '#e8f0fe' : 'white', fontWeight: prefs.mobility === v ? 600 : 400 }}>
+                      {v === 'low' ? '🧘 ' : v === 'medium' ? '👥 ' : '🎉 '}{l}
+                    </button>
+                  ))}
+                </div>
+
+                <div style={{ fontSize: '.75rem', color: '#888', marginBottom: 4 }}>Interests</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 10 }}>
+                  {['museum', 'cafe', 'park', 'temple', 'shopping_mall', 'viewpoint', 'market', 'art_gallery', 'historic_site', 'hotel'].map(cat => {
+                    const selected = prefs.interests.includes(cat);
+                    return (
+                      <button key={cat} onClick={() => setPrefs(x => ({
+                        ...x, interests: selected
+                          ? x.interests.split(',').map(s => s.trim()).filter(s => s !== cat).join(', ')
+                          : (x.interests + ', ' + cat).replace(/^, /, '')
+                      }))}
+                        style={{ padding: '3px 10px', border: selected ? '2px solid #0070f3' : '1px solid #ddd', borderRadius: 14, cursor: 'pointer', fontSize: '.72rem', background: selected ? '#e8f0fe' : 'white', fontWeight: selected ? 600 : 400, color: selected ? '#0070f3' : '#555' }}>
+                        {cat.replace(/_/g, ' ')}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <input placeholder="Other interests (comma separated)" value={prefs.interests} onChange={e => setPrefs(x => ({...x, interests: e.target.value}))} style={{ width: '100%', marginBottom: 8, padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: '.82rem', boxSizing: 'border-box' }} />
                 <select value={prefs.budget_level} onChange={e => setPrefs(x => ({...x, budget_level: e.target.value}))} style={{ width: '100%', marginBottom: 8, padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: '.82rem', boxSizing: 'border-box', background: 'white' }}>
-                  <option value="">Budget…</option><option value="cheap">Cheap</option><option value="moderate">Moderate</option><option value="expensive">Expensive</option>
+                  <option value="">Budget…</option><option value="cheap">💰 Cheap</option><option value="moderate">💰💰 Moderate</option><option value="expensive">💰💰💰 Expensive</option>
                 </select>
                 <input placeholder="Home base / hotel area" value={prefs.home_base} onChange={e => setPrefs(x => ({...x, home_base: e.target.value}))} style={{ width: '100%', marginBottom: 12, padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: '.82rem', boxSizing: 'border-box' }} />
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
@@ -555,7 +620,7 @@ export default function Home() {
             )}
             <MapView
               markers={mapMarkers.map((p: any, i: number) => ({ lat: p.lat, lng: p.lng, label: `${i+1}. ${p.name}${p.day ? ` (Day ${p.day})` : ''}`, category: p.category, day: p.day }))}
-              routes={[]}
+              routes={mapRoutes}
             />
           </div>
         </div>
@@ -580,6 +645,14 @@ export default function Home() {
                     Transport: HK${(detail as any).costSummary.totalTransport} · Entry: HK${(detail as any).costSummary.totalEntry} · Total: <strong>HK${(detail as any).costSummary.totalAll}</strong>
                   </div>
                 )}
+                {(() => {
+                  const scores: number[] = detail.items.map(i => i.accessibility_score).filter((s): s is number => s != null && s > 0);
+                  if (scores.length === 0) return null;
+                  const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+                  const color = avg >= 4 ? '#27ae60' : avg >= 2 ? '#e67e22' : '#e74c3c';
+                  const label = avg >= 4 ? 'Good' : avg >= 2 ? 'Limited' : 'Poor';
+                  return <div style={{ fontSize: '.82rem', color, marginTop: 2 }}>♿ Accessibility: {avg.toFixed(1)}/5 ({label})</div>;
+                })()}
                 <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                   <button onClick={() => confirmItinerary(detail.itinerary.id)} style={{ background: '#27ae60', border: 'none', color: 'white', padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontSize: '.82rem' }}>
                     ✓ Confirm All
@@ -610,6 +683,15 @@ export default function Home() {
                           {i > 0 && item.road_distance_meters > 0 && (
                             <div className="stop-walk">🚶 {fmtDist(item.road_distance_meters)} · ~{walkTime(item.road_distance_meters)} walk</div>
                           )}
+                          {item.accessibility_score != null && item.accessibility_score > 0 && (
+                            <span style={{ fontSize: '.7rem', padding: '1px 6px', borderRadius: 4, background: item.accessibility_score >= 4 ? '#d4edda' : item.accessibility_score >= 2 ? '#fff3cd' : '#f8d7da', color: item.accessibility_score >= 4 ? '#155724' : item.accessibility_score >= 2 ? '#856404' : '#721c24', marginRight: 4 }}>
+                              ♿ {item.accessibility_score}/5
+                            </span>
+                          )}
+                          {item.accessibility_tags != null && item.accessibility_tags.length > 0 && (() => {
+                            const tags = item.accessibility_tags as string[];
+                            return <span style={{ fontSize: '.68rem', color: '#888' }}>{tags.slice(0, 3).join(', ')}</span>;
+                          })()}
                           {item.confirmed && <span style={{ fontSize: '.7rem', color: '#27ae60', fontWeight: 500 }}>✓ Confirmed</span>}
                           {(item.entry_cost || item.transport_cost) && (
                             <div style={{ fontSize: '.75rem', color: '#888', marginTop: 2 }}>

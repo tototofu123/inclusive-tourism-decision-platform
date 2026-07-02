@@ -1,6 +1,6 @@
-# Files Needed – Web MVP
+# Files Needed – V1
 
-This document lists the concrete files and modules required to implement the Web MVP.
+This document lists the concrete files and modules required for V1.
 
 ## Frontend Files
 - `pages/chat.tsx`

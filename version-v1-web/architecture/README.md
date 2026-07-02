@@ -1,6 +1,6 @@
-# Architecture – Web MVP
+# Architecture – V1
 
-This document describes the architecture for the Web MVP in more detail, including components and data flow.
+This document describes the architecture for V1, including components and data flow.
 
 ## Components Overview
 - **Web Frontend (Next.js + React)**

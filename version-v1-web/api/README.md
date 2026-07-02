@@ -1,6 +1,6 @@
-# API – Web MVP
+# API – V1
 
-This document specifies the APIs used and exposed in the Web MVP.
+This document specifies the APIs used and exposed in V1.
 
 ## Public REST Endpoints
 

@@ -1,6 +1,6 @@
-# Components – Web MVP
+# Components – V1
 
-This document describes reusable components in the Web MVP codebase.
+This document describes reusable components in the V1 codebase.
 
 ## UI Components
 - `ChatInput`

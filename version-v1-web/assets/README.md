@@ -1,6 +1,6 @@
-# Assets – Web MVP
+# Assets – V1
 
-This document lists non-code assets that support the Web MVP.
+This document lists non-code assets that support the V1 prototype.
 
 ## Architecture Diagrams
 - System diagram showing:

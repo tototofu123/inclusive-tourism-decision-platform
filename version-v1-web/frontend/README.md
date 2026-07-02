@@ -1,6 +1,6 @@
-# Frontend – Web MVP
+# Frontend – V1
 
-This document describes the frontend design and behaviour for the Web MVP.
+This document describes the frontend design and behaviour for V1.
 
 ## Pages
 - `chat` page

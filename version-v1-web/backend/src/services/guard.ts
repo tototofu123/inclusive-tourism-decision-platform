@@ -1,10 +1,12 @@
 const INJECTION_PATTERNS: RegExp[] = [
-  /ignore\s+(all\s+)?previous\s+instructions/i,
-  /forget\s+(all\s+)?(previous\s+)?(instructions|directives)/i,
+  /ignore\s+(all\s+)?(previous\s+)?(your\s+)?instructions/i,
+  /forget\s+(all\s+)?(previous\s+)?(your\s+)?(instructions|directives)/i,
   /override\s+(system\s+)?prompt/i,
   /reveal\s+your\s+(system\s+)?prompt/i,
   /what\s+(are\s+)?your\s+(system\s+)?(instructions|prompt|rules)/i,
   /tell\s+me\s+your\s+(system\s+)?prompt/i,
+  /act\s+as\s+(a\s+)?(different|new|another)\s+(persona|character|role|ai|assistant|system)/i,
+  /do\s+anything\s+now/i,
 ];
 
 const OFF_TOPIC_PATTERNS: RegExp[] = [

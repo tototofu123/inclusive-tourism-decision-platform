@@ -1,6 +1,6 @@
-# Flow – Web MVP
+# Flow – V1
 
-This document describes the end-to-end flow for the Web MVP from user input to rendered itinerary.
+This document describes the end-to-end flow for V1 from user input to rendered itinerary.
 
 ## High-Level Steps
 1. **User opens the web app** and lands on the chat page.
@@ -32,4 +32,4 @@ This document describes the end-to-end flow for the Web MVP from user input to r
 - `itinerary_id` is the single key used to retrieve the itinerary later.
 - Frontend always uses the API to fetch the itinerary by id rather than reusing stale local state.
 
-This flow should be kept as simple and deterministic as possible for the MVP so that bugs are easy to trace.
+V1 uses two-phase polling (`POST /chat` → `processId`, then `GET /chat/status/:processId` every 200ms) for real-time feedback during LLM planning.
