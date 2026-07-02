@@ -1,34 +1,18 @@
-import { Router } from 'express';
-import { Pool } from 'pg';
+import { Router, Request, Response } from 'express';
+import { listPlaces } from '../db/client';
 
-export const placesRouter = Router();
+const router = Router();
 
-let _pool: Pool | null = null;
-function getPool() {
-  if (!_pool) _pool = new Pool({ connectionString: process.env.ALLOYDB_CONNECTION_STRING });
-  return _pool;
-};
-
-placesRouter.get('/', async (req, res) => {
-  const { location, tags } = req.query;
+router.get('/places', async (req: Request, res: Response) => {
   try {
-    if (process.env.VERTEX_AI_ENABLED === 'true') {
-      const tagArr = tags ? String(tags).split(',') : [];
-      const pool = getPool();
-      const { rows } = await pool.query(
-        `SELECT place_id, name, address, accessibility_tags, city
-         FROM places
-         WHERE ($1::text IS NULL OR city = $1)
-           AND ($2::text[] = '{}' OR accessibility_tags && $2)
-         ORDER BY name LIMIT 50`,
-        [location || null, tagArr]
-      );
-      res.json(rows);
-    } else {
-      // Local fallback: return static seed data
-      res.json([{ placeId: 'local-001', name: 'Local Fallback Place', address: String(location || 'Unknown'), accessibilityTags: [] }]);
-    }
+    const limit = parseInt(req.query.limit as string) || 9999;
+    const offset = parseInt(req.query.offset as string) || 0;
+    const data = await listPlaces(limit, offset);
+    res.json(data);
   } catch (err) {
-    res.status(500).json({ error: (err as Error).message });
+    console.error('List places error:', err);
+    res.status(500).json({ error: 'Failed to list places' });
   }
 });
+
+export default router;

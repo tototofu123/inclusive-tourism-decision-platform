@@ -1,26 +1,23 @@
 {
-  "name": "inclusive-tourism-backend-v2",
-  "version": "2.0.0",
-  "description": "Backend for Inclusive Tourism Platform v2 — cloud-first with local fallback",
-  "main": "dist/server.js",
+  "name": "mvp-backend",
+  "version": "1.0.0",
+  "private": true,
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "build": "tsc",
-    "start": "node dist/server.js"
+    "dev": "tsx src/index.ts",
+    "start": "tsx src/index.ts"
   },
   "dependencies": {
-    "@google-cloud/bigquery": "^7.0.0",
-    "@google-cloud/vertexai": "^1.0.0",
+    "@xenova/transformers": "^2.17.2",
     "cors": "^2.8.5",
-    "express": "^4.18.2",
-    "pg": "^8.11.3"
+    "express": "^4.21.0",
+    "pg": "^8.13.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
-    "@types/express": "^4.17.21",
-    "@types/node": "^20.0.0",
-    "@types/pg": "^8.10.9",
-    "ts-node-dev": "^2.0.0",
-    "typescript": "^5.0.0"
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.11.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
   }
 }
