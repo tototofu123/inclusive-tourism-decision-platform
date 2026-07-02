@@ -678,7 +678,11 @@ export async function executeTool(name: string, args: any, emit: EmitFn): Promis
         firstOf(args, 'existing_itinerary_id', 'itinerary_id'),
         firstOf(args, 'region', 'area') || 'kowloon'
       );
-    case 'edit_itinerary': return editItineraryTool(firstOf(args, 'itinerary_id', 'id'), firstOf(args, 'changes', 'action', 'modification'), emit);
+    case 'edit_itinerary': return editItineraryTool(
+      firstOf(args, 'itinerary_id', 'id'),
+      firstOf(args, 'changes', 'action', 'modification', 'stops', 'modifications') || '',
+      emit
+    );
     case 'get_itinerary': return getItineraryTool(firstOf(args, 'itinerary_id', 'id', 'trip_id'));
     case 'list_itineraries': return listItinerariesTool();
     case 'delete_itinerary': return deleteItineraryTool(firstOf(args, 'itinerary_id', 'id'));
