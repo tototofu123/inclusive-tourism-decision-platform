@@ -17,11 +17,13 @@ export const TOOLS: any[] = [
     type: 'function',
     function: {
       name: 'search_places',
-      description: 'Search for places in Kowloon by category, name, or keywords. Categories include: museum, cafe, restaurant, park, temple, shopping_mall, viewpoint, market, art_gallery, historic_site.',
+      description: 'Search for places by category, name, region, or keywords. Regions: kowloon, hong_kong_island, new_territories. Budgets: free, cheap, moderate, expensive. Categories: museum, cafe, restaurant, park, temple, shopping_mall, viewpoint, market, art_gallery, historic_site, hotel.',
       parameters: {
         type: 'object',
         properties: {
           query: { type: 'string', description: 'What the user is looking for, e.g. "museums in Tsim Sha Tsui" or "parks near me"' },
+          region: { type: 'string', description: 'Region filter: kowloon, hong_kong_island, new_territories' },
+          budget: { type: 'string', description: 'Budget filter: free, cheap, moderate, expensive' },
         },
         required: ['query'],
       },
@@ -230,9 +232,10 @@ type EmitFn = (msg: string) => void;
 
 // ── Tool implementations ──
 
-async function searchPlaces(query_text: string, emit: EmitFn): Promise<ToolResult> {
+async function searchPlaces(query_text: string, region: string, budget: string, emit: EmitFn): Promise<ToolResult> {
   const th: string[] = [];
-  emit('Searching Kowloon for matching places...'); th.push('Searching Kowloon for matching places...');
+  const regionLabel = region ? region.replace(/_/g, ' ') : 'Kowloon';
+  emit(`Searching ${regionLabel} for matching places...`); th.push(`Searching ${regionLabel} for matching places...`);
 
   const t = query_text.toLowerCase();
   const categories: string[] = [];
@@ -252,14 +255,14 @@ async function searchPlaces(query_text: string, emit: EmitFn): Promise<ToolResul
   emit(catMsg); th.push(catMsg);
 
   const stops: LLMStop[] = categories.map(c => ({ label: c, category: c, approx_duration_minutes: 60, notes: '' }));
-  const places = await resolveStops(stops);
+  const places = await resolveStops(stops, region, budget);
 
-  const foundMsg = `Found ${places.length} places in Kowloon`;
+  const foundMsg = `Found ${places.length} places in ${regionLabel}`;
   emit(foundMsg); th.push(foundMsg);
 
   const names = places.map(p => `- ${p.label}`).join('\n');
   return {
-    response: `I found ${places.length} place${places.length !== 1 ? 's' : ''} in Kowloon:\n${names}`,
+    response: `I found ${places.length} place${places.length !== 1 ? 's' : ''} in ${regionLabel}:\n${names}`,
     thinking: th,
     places: places.map(p => ({ id: p.placeId, name: p.label, lat: p.lat, lng: p.lng, category: categories[places.indexOf(p)] || 'attraction' })),
   };
@@ -281,7 +284,7 @@ async function createItineraryTool(days: number, preferences: string, emit: Emit
   const searchMsg = `Searching for places: ${categories.join(', ')}`;
   emit(searchMsg); th.push(searchMsg);
 
-  let resolved = await resolveStops(llmPlan.stops);
+  let resolved = await resolveStops(llmPlan.stops, 'kowloon');
   const foundMsg = `Found ${resolved.length} accessible places for your trip`;
   emit(foundMsg); th.push(foundMsg);
 
@@ -349,7 +352,7 @@ async function editItineraryTool(itineraryId: number, changes: string, emit: Emi
 
   if (isAdd) {
     const stops: LLMStop[] = [{ label: changes.replace(/add|include|also|plus|another/gi, '').trim(), category: 'attraction', approx_duration_minutes: 60, notes: '' }];
-    const resolved = await resolveStops(stops);
+    const resolved = await resolveStops(stops, 'kowloon');
     const foundMsg = `Found ${resolved.length} new place(s)`;
     emit(foundMsg); th.push(foundMsg);
     const nextIndex = existingStops.length;
@@ -654,7 +657,10 @@ export async function executeTool(name: string, args: any, emit: EmitFn): Promis
   emit(`Running tool: ${name}`);
   switch (name) {
     case 'search_places':
-      return searchPlaces(firstOf(args, 'query', 'category', 'interest', 'keywords', 'name', 'q') || '', emit);
+      return searchPlaces(firstOf(args, 'query', 'category', 'interest', 'keywords', 'name', 'q') || '',
+        firstOf(args, 'region', 'area') || '',
+        firstOf(args, 'budget', 'price', 'cost') || '',
+        emit);
     case 'create_itinerary':
       return createItineraryTool(
         parseInt(firstOf(args, 'days', 'num_days', 'number_of_days')) || 1,

@@ -6,7 +6,7 @@ const pool = new Pool({
   port: parseInt(process.env.PGPORT || '5432'),
   user: process.env.PGUSER || 'postgres',
   password: process.env.PGPASSWORD || 'postgres',
-  database: process.env.PGDATABASE || 'inclusive_tourism_mvp',
+  database: process.env.PGDATABASE || 'inclusive_tourism_v1',
 });
 
 pool.on('error', err => console.error('Unexpected DB pool error:', err));
@@ -45,16 +45,19 @@ export async function saveItinerary(userText: string, region: string): Promise<n
 export async function saveItineraryItem(item: {
   itinerary_id: number; place_id: number; stop_index: number; label?: string;
   start_time?: string; end_time?: string; road_distance_meters?: number;
-  duration_minutes?: number; route_geometry?: any; day_number?: number
+  duration_minutes?: number; route_geometry?: any; day_number?: number;
+  transport_cost?: number; entry_cost?: number; transport_mode?: string; confirmed?: boolean;
 }) {
   await query(
-    `INSERT INTO itinerary_items (itinerary_id, place_id, stop_index, label, start_time, end_time, road_distance_meters, duration_minutes, route_geometry_json, day_number)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+    `INSERT INTO itinerary_items (itinerary_id, place_id, stop_index, label, start_time, end_time, road_distance_meters, duration_minutes, route_geometry_json, day_number, transport_cost, entry_cost, transport_mode, confirmed)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
     [item.itinerary_id, item.place_id, item.stop_index, item.label || null,
      item.start_time || null, item.end_time || null,
      item.road_distance_meters || 0, item.duration_minutes || 60,
      item.route_geometry ? JSON.stringify(item.route_geometry) : null,
-     item.day_number || 1]
+     item.day_number || 1,
+     item.transport_cost || 0, item.entry_cost || 0,
+     item.transport_mode || 'walking', item.confirmed ?? false]
   );
 }
 
@@ -65,7 +68,21 @@ export async function getFullItinerary(id: number) {
     `SELECT ii.*, p.name as place_name, p.lat, p.lng, p.category, p.description
      FROM itinerary_items ii JOIN places p ON ii.place_id = p.id WHERE ii.itinerary_id=$1 ORDER BY ii.stop_index`, [id]
   );
-  return { itinerary: itin.rows[0], items: items.rows };
+  const totals = await query(
+    `SELECT COALESCE(SUM(transport_cost),0) as total_transport, COALESCE(SUM(entry_cost),0) as total_entry,
+            COUNT(*) FILTER (WHERE confirmed) as confirmed_count
+     FROM itinerary_items WHERE itinerary_id=$1`, [id]
+  );
+  return {
+    itinerary: itin.rows[0],
+    items: items.rows,
+    costSummary: {
+      totalTransport: parseFloat(totals.rows[0].total_transport),
+      totalEntry: parseFloat(totals.rows[0].total_entry),
+      totalAll: parseFloat(totals.rows[0].total_transport) + parseFloat(totals.rows[0].total_entry),
+      confirmedCount: parseInt(totals.rows[0].confirmed_count),
+    },
+  };
 }
 
 // Sessions

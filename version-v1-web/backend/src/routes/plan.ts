@@ -15,7 +15,7 @@ router.post('/plan', async (req: Request, res: Response) => {
     }
 
     const llmPlan = await planTrip(text.trim());
-    const places = await resolveStops(llmPlan.stops);
+    const places = await resolveStops(llmPlan.stops, 'kowloon');
     const itineraryId = await saveItinerary(text.trim(), 'Kowloon');
 
     const stops: Array<{ label: string; placeId: number; startTime: string; endTime: string }> = [];

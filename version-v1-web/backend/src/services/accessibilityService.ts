@@ -1,3 +1,5 @@
+import { query } from '../db/client';
+
 const OVERPASS_BASE = process.env.OVERPASS_BASE || 'https://overpass-api.de/api/interpreter';
 
 export interface AccessibilityInfo {
@@ -8,6 +10,9 @@ export interface AccessibilityInfo {
 }
 
 export async function getAccessibility(placeName: string): Promise<AccessibilityInfo> {
+  const fromDb = await queryDbAccessibility(placeName);
+  if (fromDb) return fromDb;
+
   const fromOverpass = await queryOverpassAccessibility(placeName);
   if (fromOverpass) return fromOverpass;
 
@@ -17,6 +22,34 @@ export async function getAccessibility(placeName: string): Promise<Accessibility
     tags: [],
     notes: 'No detailed accessibility data available. Contact the venue or check in person.',
   };
+}
+
+async function queryDbAccessibility(name: string): Promise<AccessibilityInfo | null> {
+  try {
+    const rows = await query(
+      `SELECT accessibility_tags, accessibility_score, name FROM places WHERE LOWER(name) LIKE $1 LIMIT 1`,
+      [`%${name.toLowerCase()}%`]
+    );
+    if (rows.rows.length === 0) return null;
+    const r = rows.rows[0];
+    const tags: string[] = r.accessibility_tags || [];
+    const score = r.accessibility_score || 0;
+    if (tags.length === 0) return null;
+
+    const wc = score >= 4 ? 'yes' : score >= 2 ? 'limited' : 'no';
+    const notes = tags.length > 0
+      ? `From curated data. Features: ${tags.join(', ')}.`
+      : `No accessibility data available.`;
+
+    return {
+      placeName: r.name,
+      wheelchair: wc as AccessibilityInfo['wheelchair'],
+      tags,
+      notes,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export async function queryAllAccessibility(): Promise<{ lat: number; lng: number; tags: Record<string, string> }[]> {

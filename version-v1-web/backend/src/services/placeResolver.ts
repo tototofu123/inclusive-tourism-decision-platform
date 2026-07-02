@@ -1,3 +1,4 @@
+import { query } from '../db/client';
 import { LLMStop } from '../types';
 import { savePlace } from '../db/client';
 import { queryAllAccessibility } from './accessibilityService';
@@ -31,13 +32,62 @@ const FALLBACK_CATEGORIES: Record<string, string[]> = {
   historic_site: ['historic', 'monument'],
 };
 
-export async function resolveStops(stops: LLMStop[]): Promise<Array<{ placeId: number; label: string; lat: number; lng: number; duration: number }>> {
+const CATEGORY_PLACE_TYPE: Record<string, string> = {
+  museum: 'attraction',
+  cafe: 'restaurant',
+  restaurant: 'restaurant',
+  park: 'attraction',
+  temple: 'attraction',
+  shopping_mall: 'attraction',
+  viewpoint: 'attraction',
+  market: 'attraction',
+  art_gallery: 'attraction',
+  historic_site: 'attraction',
+  hotel: 'hotel',
+  transport_hub: 'transport_hub',
+};
+
+export async function resolveStops(
+  stops: LLMStop[],
+  region?: string,
+  budget?: string,
+): Promise<Array<{ placeId: number; label: string; lat: number; lng: number; duration: number }>> {
   const results: Array<{ placeId: number; label: string; lat: number; lng: number; duration: number }> = [];
   const allAccess = await queryAllAccessibility();
 
   for (const stop of stops) {
     const cats = FALLBACK_CATEGORIES[stop.category] || [stop.category];
-    let place: { name: string; lat: number; lng: number } | null = null;
+    const placeType = CATEGORY_PLACE_TYPE[stop.category] || 'attraction';
+    let place: { id?: number; name: string; lat: number; lng: number } | null = null;
+
+    const params: any[] = [placeType, cats];
+    let sql = `SELECT id, name, lat, lng FROM places
+               WHERE place_type = $1
+                 AND (LOWER(category) = ANY($2) OR LOWER(place_type) = ANY($2))`;
+    let idx = 3;
+    if (region) { sql += ` AND region = $${idx++}`; params.push(region); }
+    if (budget) { sql += ` AND budget = $${idx++}`; params.push(budget); }
+    sql += ` ORDER BY accessibility_score DESC, RANDOM() LIMIT 3`;
+    const dbResult = await query(sql, params);
+
+    if (dbResult.rows.length > 0) {
+      place = dbResult.rows[0];
+    }
+
+    let wheelTag = '';
+    const foundPlace = place;
+    if (foundPlace) {
+        const near = allAccess.find(a => Math.abs(a.lat - foundPlace.lat) < 0.005 && Math.abs(a.lng - foundPlace.lng) < 0.005);
+        if (near?.tags?.wheelchair) wheelTag = ` Wheelchair: ${near.tags.wheelchair}.`;
+        results.push({
+          placeId: foundPlace.id!,
+          label: foundPlace.name,
+          lat: foundPlace.lat,
+          lng: foundPlace.lng,
+          duration: stop.approx_duration_minutes,
+        });
+        continue;
+    }
 
     for (const cat of cats) {
       place = await queryOverpass(cat, stop.label);
@@ -48,7 +98,6 @@ export async function resolveStops(stops: LLMStop[]): Promise<Array<{ placeId: n
       place = await queryNominatim(stop.label, stop.category);
     }
 
-    let wheelTag = '';
     if (place) {
       const near = allAccess.find(a => Math.abs(a.lat - place!.lat) < 0.005 && Math.abs(a.lng - place!.lng) < 0.005);
       if (near?.tags?.wheelchair) wheelTag = ` Wheelchair: ${near.tags.wheelchair}.`;

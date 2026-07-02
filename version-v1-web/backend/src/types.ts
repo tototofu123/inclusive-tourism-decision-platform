@@ -45,6 +45,11 @@ export interface ItineraryItemRow {
   category?: string;
   description?: string;
   day_number?: number;
+  transport_cost?: number;
+  entry_cost?: number;
+  transport_mode?: string;
+  confirmed?: boolean;
+  confirmed_at?: string;
 }
 
 export interface LLMStop {

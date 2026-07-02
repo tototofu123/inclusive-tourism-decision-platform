@@ -153,7 +153,7 @@ function getFallbackAgentResponse(userText: string): AgentResponse {
 export async function executeAgentResponse(response: AgentResponse): Promise<AgentResponse> {
   if (response.intent === 'create_itinerary' && response.itineraryStops && response.itineraryStops.length > 0) {
     try {
-      const resolvedPlaces = await resolveStops(response.itineraryStops);
+      const resolvedPlaces = await resolveStops(response.itineraryStops, 'kowloon');
       const places = resolvedPlaces.map(p => ({
         placeId: p.placeId, name: p.label, lat: p.lat, lng: p.lng,
       }));
@@ -168,7 +168,7 @@ export async function executeAgentResponse(response: AgentResponse): Promise<Age
 export async function saveAgentItinerary(response: AgentResponse, userText: string): Promise<number | undefined> {
   if ((response.intent === 'create_itinerary' || response.intent === 'add_to_itinerary') && response.itineraryStops && response.itineraryStops.length > 0) {
     try {
-      const resolvedPlaces = await resolveStops(response.itineraryStops);
+      const resolvedPlaces = await resolveStops(response.itineraryStops, 'kowloon');
       const itineraryId = await saveItinerary(userText, 'Kowloon');
       let hour = 9;
       for (let i = 0; i < resolvedPlaces.length; i++) {

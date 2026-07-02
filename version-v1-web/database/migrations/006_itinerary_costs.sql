@@ -1,0 +1,5 @@
+ALTER TABLE itinerary_items ADD COLUMN IF NOT EXISTS transport_cost NUMERIC(10,2) DEFAULT 0;
+ALTER TABLE itinerary_items ADD COLUMN IF NOT EXISTS entry_cost NUMERIC(10,2) DEFAULT 0;
+ALTER TABLE itinerary_items ADD COLUMN IF NOT EXISTS transport_mode TEXT DEFAULT 'walking';
+ALTER TABLE itinerary_items ADD COLUMN IF NOT EXISTS confirmed BOOLEAN DEFAULT false;
+ALTER TABLE itinerary_items ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMP;

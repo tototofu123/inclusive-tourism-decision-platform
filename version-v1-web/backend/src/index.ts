@@ -9,6 +9,7 @@ import chatRouter from './routes/chat';
 import sessionsRouter from './routes/sessions';
 import placesRouter from './routes/places';
 import modelsRouter from './routes/models';
+import preferencesRouter from './routes/preferences';
 
 const LLAMA_HOST = process.env.LLAMA_HOST || 'http://127.0.0.1:8081';
 const app = express();
@@ -22,6 +23,7 @@ app.use(chatRouter);
 app.use(sessionsRouter);
 app.use(placesRouter);
 app.use(modelsRouter);
+app.use(preferencesRouter);
 app.get('/health', async (_req, res) => {
   try {
     const controller = new AbortController();

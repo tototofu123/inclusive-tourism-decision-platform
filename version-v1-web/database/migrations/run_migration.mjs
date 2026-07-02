@@ -7,7 +7,7 @@ const { Client } = pg;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const client = new Client({
   user: 'postgres',
-  database: 'inclusive_tourism_mvp',
+  database: 'inclusive_tourism_v1',
 });
 
 await client.connect();
