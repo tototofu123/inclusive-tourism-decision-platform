@@ -306,19 +306,49 @@ export async function processChat(text: string, itineraryId?: number, onThink?: 
 
     throw new Error('Empty LLM response');
   } catch (err) {
-    const errorMsg = (err as Error).message;
-    console.error('processChat error:', errorMsg);
+      const errorMsg = (err as Error).message;
+      console.error('processChat error:', errorMsg);
 
-    if (errorMsg.includes('fetch') || errorMsg.includes('abort') || errorMsg.includes('connect')) {
+      // Vertex AI unavailable → fall through to local llama
+      if (errorMsg.includes('VERTEX_AI_UNAVAILABLE')) {
+        console.log('Vertex AI unavailable, falling back to local llama.cpp');
+        try {
+          const localMessages = [
+            { role: 'system', content: systemPrompt },
+            ...messages.slice(1),
+          ];
+          const localRes = await chatCompletion(localMessages, undefined, {
+            temperature: 0.1, maxTokens: 4096,
+            provider: 'local',
+            baseUrl: process.env.LLAMA_HOST || 'http://127.0.0.1:8081',
+          });
+          const localContent = (localRes.content || '').trim();
+          const parsed = parseToolCalls(localContent);
+          if (parsed.length) {
+            const localResult = await executeTool(parsed[0].name, parsed[0].args, emit);
+            return {
+              thinking: ['Analyzing your request...', ...(localResult.thinking || []), 'Done!'],
+              response: localResult.response,
+              places: localResult.places,
+              itinerary: localResult.itinerary,
+            };
+          }
+          return { thinking: ['Analyzing your request...', 'Done!'], response: localContent };
+        } catch (localErr) {
+          // Both Vertex AI and local failed — give user the standard message
+        }
+      }
+
+      if (errorMsg.includes('fetch') || errorMsg.includes('abort') || errorMsg.includes('connect')) {
+        return {
+          thinking: ['Analyzing your request...', 'LLM connection failed', 'Done!'],
+          response: "I'm your Kowloon travel assistant. I can help plan itineraries, find places, and answer questions about Hong Kong. My LLM connection is currently unavailable — please check that llama-server is running.",
+        };
+      }
+
       return {
-        thinking: ['Analyzing your request...', 'LLM connection failed', 'Done!'],
-        response: "I'm your Kowloon travel assistant. I can help plan itineraries, find places, and answer questions about Hong Kong. My LLM connection is currently unavailable — please check that llama-server is running.",
+        thinking: ['Analyzing your request...', 'Done!'],
+        response: "I'm your Kowloon travel assistant. I can help plan itineraries, find places, and answer questions about Hong Kong.",
       };
-    }
-
-    return {
-      thinking: ['Analyzing your request...', 'Done!'],
-      response: "I'm your Kowloon travel assistant. I can help plan itineraries, find places, and answer questions about Hong Kong.",
-    };
   }
 }

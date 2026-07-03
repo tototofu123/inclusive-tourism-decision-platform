@@ -37,11 +37,20 @@ const DEFAULT_CONFIG: ApiClientConfig = {
 let activeConfig: ApiClientConfig = { ...DEFAULT_CONFIG };
 let genAiClient: GoogleGenAI | null = null;
 
-function getGenAi(): GoogleGenAI {
-  if (!genAiClient) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) throw new Error('GEMINI_API_KEY not set — get one free at https://aistudio.google.com/apikey');
+function getGenAi(useVertexAi: boolean): GoogleGenAI {
+  const cacheKey = useVertexAi ? 'vertex' : 'apiKey';
+  if (genAiClient && (genAiClient as any)._cacheKey === cacheKey) return genAiClient;
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (apiKey && !useVertexAi) {
     genAiClient = new GoogleGenAI({ apiKey });
+    (genAiClient as any)._cacheKey = cacheKey;
+  } else {
+    // Ensure project/location env vars are set for Vertex AI mode
+    process.env.GOOGLE_CLOUD_PROJECT = process.env.VERTEX_PROJECT_ID || 'tourism-accessibility';
+    process.env.LOCATION = process.env.VERTEX_LOCATION || 'us-central1';
+    genAiClient = new GoogleGenAI({ vertexai: true });
+    (genAiClient as any)._cacheKey = cacheKey;
   }
   return genAiClient;
 }
@@ -120,8 +129,17 @@ export async function chatCompletion(
   const cfg = { ...activeConfig, ...overrides };
 
   // Vertex AI / Gemini path
-  if (cfg.provider === 'vertex' || process.env.VERTEX_AI_ENABLED === 'true') {
-    return chatCompletionGenAi(messages, cfg);
+  const useVertex = cfg.provider === 'vertex' || (process.env.VERTEX_AI_ENABLED === 'true' && cfg.provider !== 'local');
+  if (useVertex) {
+    try {
+      return await chatCompletionGenAi(messages, cfg);
+    } catch (err: any) {
+      if (err.message === 'VERTEX_AI_UNAVAILABLE') throw err;
+      console.warn('Vertex AI failed, falling back to local:', err.message.slice(0, 80));
+    }
+    // Fall through to local provider
+    cfg.provider = 'local';
+    cfg.baseUrl = process.env.LLAMA_HOST || 'http://127.0.0.1:8081';
   }
 
   const baseUrl = cfg.baseUrl || LLAMA_HOST;
@@ -188,50 +206,68 @@ async function chatCompletionGenAi(
   messages: any[],
   cfg: ApiClientConfig,
 ): Promise<ApiChatResponse> {
-  const client = getGenAi();
   const modelName = cfg.model || process.env.VERTEX_MODEL || 'gemini-2.0-flash-001';
   const { contents, systemInstruction } = toGenAiContents(messages);
+  const config = {
+    systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : undefined,
+    temperature: cfg.temperature ?? 0.1,
+    maxOutputTokens: cfg.maxTokens ?? 4096,
+    tools: toGenAiTools(),
+  };
 
-  try {
-    const result = await client.models.generateContent({
-      model: modelName,
-      contents,
-      config: {
-        systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : undefined,
-        temperature: cfg.temperature ?? 0.1,
-        maxOutputTokens: cfg.maxTokens ?? 4096,
-        tools: toGenAiTools(),
-      },
-    });
-
-    const candidate = result.candidates?.[0];
-    if (!candidate) return { content: '', finishReason: 'stop' };
-
-    const parts = candidate.content?.parts || [];
-    let content = '';
-    const toolCalls: Array<{ id: string; name: string; args: any }> = [];
-
-    for (const part of parts) {
-      if (part.text) content += part.text;
-      if (part.functionCall) {
-        const fc = part.functionCall as any;
-        toolCalls.push({
-          id: `fc_${fc.name}_${Date.now()}`,
-          name: fc.name,
-          args: typeof fc.args === 'object' ? fc.args : {},
-        });
-      }
+  // Tier 1: Gemini API key (AI Studio)
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (apiKey) {
+    try {
+      const client = getGenAi(false);
+      const result = await client.models.generateContent({ model: modelName, contents, config });
+      return parseGenAiResult(result);
+    } catch (err: any) {
+      console.warn('Gemini API key failed, trying Vertex AI:', err.message.slice(0, 80));
     }
+  }
 
-    return {
-      content: content.trim(),
-      toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-      finishReason: toolCalls.length > 0 ? 'tool_calls' : 'stop',
-    };
+  // Tier 2: Vertex AI (service account / ADC)
+  try {
+    const client = getGenAi(true);
+    const result = await client.models.generateContent({ model: modelName, contents, config });
+    return parseGenAiResult(result);
   } catch (err: any) {
-    console.error('Gemini API error:', err.message);
+    const msg = err.message || '';
+    if (msg.includes('NOT_FOUND') || msg.includes('PERMISSION_DENIED')) {
+      console.warn('Vertex AI unavailable (project not allowlisted), falling back to local LLM');
+      throw new Error('VERTEX_AI_UNAVAILABLE');
+    }
+    console.error('Vertex AI error:', msg);
     throw err;
   }
+}
+
+function parseGenAiResult(result: any): ApiChatResponse {
+  const candidate = result.candidates?.[0];
+  if (!candidate) return { content: '', finishReason: 'stop' };
+
+  const parts = candidate.content?.parts || [];
+  let content = '';
+  const toolCalls: Array<{ id: string; name: string; args: any }> = [];
+
+  for (const part of parts) {
+    if (part.text) content += part.text;
+    if (part.functionCall) {
+      const fc = part.functionCall as any;
+      toolCalls.push({
+        id: `fc_${fc.name}_${Date.now()}`,
+        name: fc.name,
+        args: typeof fc.args === 'object' ? fc.args : {},
+      });
+    }
+  }
+
+  return {
+    content: content.trim(),
+    toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+    finishReason: toolCalls.length > 0 ? 'tool_calls' : 'stop',
+  };
 }
 
 function parseResponse(data: any, provider: string): ApiChatResponse {
