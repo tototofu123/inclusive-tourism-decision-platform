@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { processChat } from '../services/agent';
 import { query, saveMessage } from '../db/client';
 import { sanitizeInput, detectPromptInjection, detectOffTopic } from '../services/guard';
+import { inferFromChat } from '../services/inferPreferences';
 import crypto from 'crypto';
 
 function genSessionTitle(text: string): string {
@@ -88,6 +89,9 @@ router.post('/chat', async (req: Request, res: Response) => {
         places_json: result.places, itinerary_id: result.itinerary?.id || null,
       });
     }
+
+    // Fire-and-forget: infer preferences from the conversation
+    inferFromChat(cleanText, result.response, result.thinking || [], sid || 0).catch(() => {});
 
     const pState = processes.get(processId);
     if (pState) {
