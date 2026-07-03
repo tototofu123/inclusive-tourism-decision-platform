@@ -60,7 +60,7 @@ export async function queryAllAccessibility(): Promise<{ lat: number; lng: numbe
     );out body 20;`;
     const res = await fetch(OVERPASS_BASE, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'InclusiveTourismMVP/1.0' },
       body: new URLSearchParams({ data: q }),
     });
     if (!res.ok) return [];
@@ -84,7 +84,7 @@ async function queryOverpassAccessibility(name: string): Promise<AccessibilityIn
     );out body 3;`;
     const res = await fetch(OVERPASS_BASE, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'InclusiveTourismMVP/1.0' },
       body: new URLSearchParams({ data: q }),
     });
     if (!res.ok) return null;

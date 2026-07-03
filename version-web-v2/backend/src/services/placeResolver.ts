@@ -166,7 +166,7 @@ async function queryOverpass(category: string, label: string): Promise<{ name: s
     const q = `[out:json][timeout:10];(${query}(22.29,114.15,22.34,114.20););out body 5;`;
     const res = await fetch(OVERPASS_BASE, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json', 'User-Agent': 'InclusiveTourismMVP/1.0' },
       body: new URLSearchParams({ data: q }),
     });
     if (!res.ok) return null;

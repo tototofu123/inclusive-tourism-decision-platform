@@ -1,0 +1,108 @@
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;color:#222;overflow:hidden}
+.app{display:flex;flex-direction:column;height:100dvh;max-width:100%;margin:0 auto}
+.header{background:#1a7a5a;color:white;padding:8px 14px;display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap;min-height:44px}
+.header h1{font-size:1rem;font-weight:600;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.header .subtitle{font-size:0.72rem;opacity:.8}
+.header .header-left{flex:1;min-width:0;display:flex;align-items:center;gap:6px}
+.header .header-buttons{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.pref-badge{font-size:.62rem;background:rgba(255,255,255,.2);color:white;padding:0 6px;border-radius:8px;white-space:nowrap;display:inline-block;line-height:1.5}
+.content{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.tab-content{display:none;overflow:hidden}
+.tab-content.active{display:flex;flex-direction:column;flex:1;min-height:0}
+.chat-tab .messages{flex:1;overflow-y:auto;padding:10px 14px}
+.chat-input{display:flex;gap:6px;padding:8px 14px;border-top:1px solid #e0e0e0;background:white;flex-shrink:0}
+.chat-input input{flex:1;padding:8px 14px;border:1px solid #ddd;border-radius:20px;font-size:0.9rem;outline:none}
+.chat-input input:focus{border-color:#1a7a5a}
+.chat-input button{padding:8px 16px;background:#1a7a5a;color:white;border:none;border-radius:20px;font-size:0.9rem;cursor:pointer;white-space:nowrap}
+.chat-input button:hover{background:#0051a8}
+.chat-input button:disabled{background:#ccc;cursor:not-allowed}
+.map-tab .map-day-filters{display:flex;gap:4px;padding:6px 14px;background:white;border-bottom:1px solid #e0e0e0;overflow-x:auto;flex-shrink:0;align-items:center}
+.map-day-btn{padding:3px 10px;border:1px solid #d0d8f0;border-radius:12px;background:white;color:#1a7a5a;cursor:pointer;font-size:0.75rem;white-space:nowrap}
+.map-day-btn.active{background:#1a7a5a;color:white;border-color:#1a7a5a}
+.map-tab .map-full{flex:1;min-height:0;overflow:hidden}
+.map-tab .map-full .leaflet-container{height:100%;width:100%}
+.itinerary-tab{overflow-y:auto;padding:10px 14px}
+@media(max-width:600px){
+  .header{padding:6px 8px;gap:4px}
+  .header h1{font-size:.85rem}
+  .header .header-buttons{gap:2px}
+  .header .header-buttons button{font-size:.65rem!important;padding:2px 6px!important}
+  .tabs .tab{font-size:.7rem;padding:6px 2px}
+  .chat-input input{font-size:.82rem;padding:6px 10px}
+  .chat-input button{font-size:.82rem;padding:6px 12px}
+  .chat-tab .messages{padding:6px 8px}
+  .msg{max-width:92%}
+  .map-tab .map-day-filters{padding:4px 6px}
+  .map-day-btn{font-size:.65rem;padding:2px 7px}
+}
+@media(max-width:400px){
+  .header .header-left{gap:3px}
+  .header h1{font-size:.75rem;max-width:80px}
+  .pref-badge{font-size:.55rem;padding:0 4px}
+  .itinerary-tab{padding:6px 8px}
+  .stop-card{padding:6px 8px}
+  .chat-input{padding:6px 8px}
+}
+.itin-card{background:white;border:1px solid #e0e0e0;border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer;transition:border-color .2s}
+.itin-card:hover{border-color:#1a7a5a}
+.itin-card.active{border-color:#1a7a5a;background:#f0f4ff}
+.itin-card .itin-title{font-weight:600;font-size:0.9rem}
+.itin-card .itin-meta{font-size:0.75rem;color:#888;margin-top:3px}
+.itin-card .itin-preview{font-size:0.8rem;color:#666;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.detail-view{padding-bottom:16px}
+.detail-header{margin-bottom:12px}
+.detail-header h2{font-size:1.1rem;margin-bottom:3px}
+.detail-meta{font-size:0.75rem;color:#888;margin-bottom:3px}
+.detail-prompt{font-size:0.8rem;color:#666;font-style:italic;margin-bottom:6px}
+.back-btn{background:none;border:none;color:#1a7a5a;cursor:pointer;font-size:0.8rem;padding:0}
+.back-btn:hover{text-decoration:underline}
+.day-group{margin-bottom:12px}
+.day-header{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:#f0f4ff;border-radius:6px;margin-bottom:6px}
+.day-title{font-weight:600;font-size:0.9rem;color:#1a7a5a}
+.day-meta{font-size:0.75rem;color:#888}
+.day-total{font-size:0.75rem;color:#888;padding:4px 10px;border-top:1px solid #eee;margin-top:2px}
+.stop-card{display:flex;gap:10px;padding:8px 10px;margin-bottom:4px;background:white;border:1px solid #e8e8e8;border-radius:6px;transition:box-shadow .15s}
+.stop-card:hover{box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.stop-left{flex-shrink:0}
+.stop-num{width:24px;height:24px;border-radius:50%;background:#1a7a5a;color:white;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600}
+.stop-body{flex:1;min-width:0}
+.stop-name{font-weight:600;font-size:0.88rem}
+.stop-times{font-size:0.75rem;color:#888;margin-top:1px}
+.stop-cat{font-size:0.7rem;color:#666;background:#f5f5f5;display:inline-block;padding:1px 6px;border-radius:6px;margin-top:3px}
+.stop-walk{font-size:0.72rem;color:#e67e22;margin-top:3px}
+.tabs{display:flex;background:white;border-top:1px solid #e0e0e0;flex-shrink:0}
+.tab{flex:1;text-align:center;padding:8px 4px;cursor:pointer;font-size:0.8rem;color:#888;border:none;background:none;transition:color .15s;position:relative}
+.tab.active{color:#1a7a5a;font-weight:600}
+.tab.active::after{content:'';position:absolute;bottom:0;left:25%;width:50%;height:2px;background:#1a7a5a;border-radius:2px 2px 0 0}
+.tab:hover{color:#1a7a5a}
+.welcome{text-align:center;padding:32px 20px;color:#888}
+.welcome h2{font-size:1.15rem;color:#333;margin-bottom:6px}
+.welcome p{font-size:0.85rem;line-height:1.4}
+.loading-dots::after{content:'...';animation:dots 1.5s infinite}
+@keyframes dots{0%,20%{content:'.'}40%{content:'..'}60%,100%{content:'...'}}
+.msg{margin-bottom:10px;max-width:85%}
+.msg.user{margin-left:auto}
+.msg.user .bubble{background:#1a7a5a;color:white;border-radius:14px 14px 4px 14px;padding:8px 12px}
+.msg.bot .bubble{background:white;border:1px solid #e0e0e0;border-radius:14px 14px 14px 4px;padding:8px 12px}
+.msg .bubble{font-size:0.9rem;line-height:1.4}
+.msg .thinking-content{background:#f0f4ff;border-left:2px solid #1a7a5a;padding:6px 10px;margin-top:4px;border-radius:3px;font-size:0.78rem;color:#555;line-height:1.4;font-family:monospace}
+.msg .thinking-content div:first-child{color:#1a7a5a;font-weight:500}
+.msg .thinking-content div:last-child{color:#2e7d32;font-weight:500}
+.thinking-pulse{display:block;width:5px;height:5px;background:#1a7a5a;border-radius:50%;margin-top:3px;animation:thinkingPulse 1s infinite}
+@keyframes thinkingPulse{0%,100%{opacity:1}50%{opacity:.3}}
+.think-toggle{font-size:.72rem;color:#1a7a5a;cursor:pointer;margin-top:2px;user-select:none}
+.think-toggle:hover{text-decoration:underline}
+.welcome-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f5f5f5;z-index:1000;padding:16px;text-align:center}
+.welcome-overlay h2{font-size:1.15rem;color:#333;margin-bottom:6px}
+.welcome-overlay p{font-size:.85rem;line-height:1.4;color:#888}
+.msg-places{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px}
+.msg-place-tag{background:#e8f0fe;color:#1a73e8;font-size:.7rem;padding:1px 6px;border-radius:8px;white-space:nowrap}
+.msg-actions{display:flex;gap:4px;margin-top:6px}
+.action-btn{border:none;border-radius:5px;padding:5px 10px;cursor:pointer;font-size:.75rem;transition:background .15s}
+.action-btn.primary{background:#1a7a5a;color:white}
+.action-btn.primary:hover{background:#0051a8}
+.action-btn.secondary{background:#f0f4ff;color:#1a7a5a;border:1px solid #d0d8f0}
+.action-btn.secondary:hover{background:#e0e8ff}
+.typewriter{overflow:hidden;animation:typewriter .15s steps(1,end) forwards}
+@keyframes typewriter{from{opacity:0;max-height:0}to{opacity:1;max-height:500px}}
