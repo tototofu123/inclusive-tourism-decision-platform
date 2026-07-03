@@ -646,7 +646,10 @@ async function setPreferencesTool(args: any, emit: EmitFn): Promise<ToolResult> 
   const changes: Record<string, string | string[]> = {};
   if (normalized) changes.mobility = normalized;
   if (Array.isArray(args.interests) && args.interests.length > 0) changes.interests = args.interests;
-  if (args.budget_level || args.budget) changes.budget_level = { cheap: 'cheap', moderate: 'medium', medium: 'medium', expensive: 'expensive' }[(args.budget_level || args.budget || '').toLowerCase()] || 'medium';
+  if (args.budget_level || args.budget) {
+    const budgetMap: Record<string, string> = { cheap: 'cheap', moderate: 'medium', medium: 'medium', expensive: 'expensive' };
+    changes.budget_level = budgetMap[(args.budget_level || args.budget || '').toLowerCase()] || 'medium';
+  }
   if (args.home_base) changes.home_base = args.home_base;
 
   if (Object.keys(changes).length === 0) {

@@ -1,7 +1,9 @@
+import { GoogleGenAI } from '@google/genai';
 import { fetchWithTimeout, LLAMA_HOST } from '../utils/http';
+import { TOOLS } from './tools';
 
 export interface ApiClientConfig {
-  provider: 'local' | 'openai' | 'anthropic' | 'google';
+  provider: 'local' | 'openai' | 'anthropic' | 'google' | 'vertex';
   apiKey?: string;
   baseUrl?: string;
   model?: string;
@@ -33,6 +35,16 @@ const DEFAULT_CONFIG: ApiClientConfig = {
 };
 
 let activeConfig: ApiClientConfig = { ...DEFAULT_CONFIG };
+let genAiClient: GoogleGenAI | null = null;
+
+function getGenAi(): GoogleGenAI {
+  if (!genAiClient) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) throw new Error('GEMINI_API_KEY not set — get one free at https://aistudio.google.com/apikey');
+    genAiClient = new GoogleGenAI({ apiKey });
+  }
+  return genAiClient;
+}
 
 export function setApiConfig(config: Partial<ApiClientConfig>): void {
   activeConfig = { ...activeConfig, ...config };
@@ -42,12 +54,76 @@ export function getApiConfig(): ApiClientConfig {
   return { ...activeConfig };
 }
 
+function toGenAiTools() {
+  return TOOLS.map(t => ({
+    functionDeclarations: [{
+      name: t.function.name,
+      description: t.function.description,
+      parameters: t.function.parameters,
+    }],
+  }));
+}
+
+function toGenAiContents(messages: any[]): { contents: any[]; systemInstruction?: any } {
+  const contents: any[] = [];
+  let systemInstruction: any = undefined;
+
+  for (const msg of messages) {
+    if (msg.role === 'system') {
+      systemInstruction = msg.content;
+      continue;
+    }
+
+    if (msg.role === 'tool') {
+      let parsed: any = {};
+      try { parsed = JSON.parse(msg.content); } catch { parsed = { response: msg.content }; }
+      contents.push({
+        role: 'user',
+        parts: [{
+          functionResponse: {
+            name: msg.tool_call_id?.replace(/^call_/, '') || 'unknown',
+            response: { response: parsed },
+          },
+        }],
+      });
+      continue;
+    }
+
+    const role = msg.role === 'assistant' ? 'model' : 'user';
+    const parts: any[] = [];
+
+    if (msg.tool_calls) {
+      for (const tc of msg.tool_calls) {
+        let args: any = {};
+        try { args = JSON.parse(tc.function.arguments); } catch { args = {}; }
+        parts.push({ functionCall: { name: tc.function.name, args } });
+      }
+    }
+
+    if (msg.content && typeof msg.content === 'string') {
+      parts.push({ text: msg.content });
+    }
+
+    if (parts.length > 0) {
+      contents.push({ role, parts });
+    }
+  }
+
+  return { contents, systemInstruction };
+}
+
 export async function chatCompletion(
   messages: any[],
   tools?: ApiToolDef[],
   overrides?: Partial<ApiClientConfig>,
 ): Promise<ApiChatResponse> {
   const cfg = { ...activeConfig, ...overrides };
+
+  // Vertex AI / Gemini path
+  if (cfg.provider === 'vertex' || process.env.VERTEX_AI_ENABLED === 'true') {
+    return chatCompletionGenAi(messages, cfg);
+  }
+
   const baseUrl = cfg.baseUrl || LLAMA_HOST;
 
   const body: any = {
@@ -108,6 +184,56 @@ export async function chatCompletion(
   return parseResponse(data, cfg.provider);
 }
 
+async function chatCompletionGenAi(
+  messages: any[],
+  cfg: ApiClientConfig,
+): Promise<ApiChatResponse> {
+  const client = getGenAi();
+  const modelName = cfg.model || process.env.VERTEX_MODEL || 'gemini-2.0-flash-001';
+  const { contents, systemInstruction } = toGenAiContents(messages);
+
+  try {
+    const result = await client.models.generateContent({
+      model: modelName,
+      contents,
+      config: {
+        systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : undefined,
+        temperature: cfg.temperature ?? 0.1,
+        maxOutputTokens: cfg.maxTokens ?? 4096,
+        tools: toGenAiTools(),
+      },
+    });
+
+    const candidate = result.candidates?.[0];
+    if (!candidate) return { content: '', finishReason: 'stop' };
+
+    const parts = candidate.content?.parts || [];
+    let content = '';
+    const toolCalls: Array<{ id: string; name: string; args: any }> = [];
+
+    for (const part of parts) {
+      if (part.text) content += part.text;
+      if (part.functionCall) {
+        const fc = part.functionCall as any;
+        toolCalls.push({
+          id: `fc_${fc.name}_${Date.now()}`,
+          name: fc.name,
+          args: typeof fc.args === 'object' ? fc.args : {},
+        });
+      }
+    }
+
+    return {
+      content: content.trim(),
+      toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+      finishReason: toolCalls.length > 0 ? 'tool_calls' : 'stop',
+    };
+  } catch (err: any) {
+    console.error('Gemini API error:', err.message);
+    throw err;
+  }
+}
+
 function parseResponse(data: any, provider: string): ApiChatResponse {
   if (provider === 'local' || provider === 'openai') {
     const choice = data.choices?.[0];
@@ -139,5 +265,5 @@ function parseResponse(data: any, provider: string): ApiChatResponse {
 }
 
 export function listProviders(): string[] {
-  return ['local', 'openai', 'anthropic', 'google'];
+  return ['local', 'openai', 'anthropic', 'google', 'vertex'];
 }

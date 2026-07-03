@@ -1,13 +1,20 @@
 import pg from 'pg';
 const { Pool } = pg;
 
-const pool = new Pool({
-  host: process.env.PGHOST || 'localhost',
-  port: parseInt(process.env.PGPORT || '5432'),
-  user: process.env.PGUSER || 'postgres',
-  password: process.env.PGPASSWORD || 'postgres',
-  database: process.env.PGDATABASE || 'inclusive_tourism_v1',
-});
+const dbConfig = {
+  host: process.env.CLOUD_SQL_HOST || process.env.PGHOST || 'localhost',
+  port: parseInt(process.env.CLOUD_SQL_PORT || process.env.PGPORT || '5432'),
+  user: process.env.CLOUD_SQL_USER || process.env.PGUSER || 'postgres',
+  password: process.env.CLOUD_SQL_PASSWORD || process.env.PGPASSWORD || 'postgres',
+  database: process.env.CLOUD_SQL_DATABASE || process.env.PGDATABASE || 'inclusive_tourism_v1',
+};
+
+// If connecting to Cloud SQL public IP, require SSL
+if (process.env.CLOUD_SQL_HOST) {
+  (dbConfig as any).ssl = { rejectUnauthorized: false };
+}
+
+const pool = new Pool(dbConfig);
 
 pool.on('error', err => console.error('Unexpected DB pool error:', err));
 

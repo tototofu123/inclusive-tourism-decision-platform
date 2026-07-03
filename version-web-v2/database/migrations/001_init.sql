@@ -6,10 +6,9 @@ CREATE TABLE IF NOT EXISTS places (
     category TEXT,
     description TEXT,
     source_api TEXT DEFAULT 'osm',
-    created_at TIMESTAMP DEFAULT NOW()
+    created_at TIMESTAMP DEFAULT NOW(),
+    CONSTRAINT places_name_lng_lat_key UNIQUE (name, lat, lng)
 );
-
-ALTER TABLE places ADD CONSTRAINT IF NOT EXISTS places_name_lng_lat_key UNIQUE (name, lat, lng);
 
 CREATE TABLE IF NOT EXISTS itineraries (
     id SERIAL PRIMARY KEY,

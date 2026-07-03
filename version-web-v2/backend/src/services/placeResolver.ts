@@ -5,6 +5,7 @@ import { queryAllAccessibility } from './accessibilityService';
 
 const OVERPASS_BASE = process.env.OVERPASS_BASE || 'https://overpass-api.de/api/interpreter';
 const NOMINATIM_BASE = process.env.NOMINATIM_BASE || 'https://nominatim.openstreetmap.org';
+const MAPS_API_KEY = process.env.MAPS_API_KEY || '';
 
 const CATEGORY_OVERPASS: Record<string, string> = {
   museum: 'node["tourism"="museum"]',
@@ -91,9 +92,16 @@ export async function resolveStops(
         continue;
     }
 
-    for (const cat of cats) {
-      place = await queryOverpass(cat, stop.label);
-      if (place) break;
+    // Prefer Google Places API when key is set
+    if (MAPS_API_KEY) {
+      place = await queryPlacesApi(stop.label + ' ' + stop.category);
+    }
+
+    if (!place) {
+      for (const cat of cats) {
+        place = await queryOverpass(cat, stop.label);
+        if (place) break;
+      }
     }
 
     if (!place) {
@@ -124,6 +132,31 @@ export async function resolveStops(
     }
   }
   return results;
+}
+
+async function queryPlacesApi(query: string): Promise<{ name: string; lat: number; lng: number } | null> {
+  if (!MAPS_API_KEY) return null;
+  try {
+    const url = `https://places.googleapis.com/v1/places:searchText`;
+    const body = {
+      textQuery: `${query} Hong Kong`,
+      locationBias: { circle: { center: { latitude: 22.319, longitude: 114.170 }, radius: 5000 } },
+      pageSize: 3,
+    };
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': MAPS_API_KEY, 'X-Goog-FieldMask': 'places.displayName,places.location' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return null;
+    const data = await res.json() as any;
+    const place = data.places?.[0];
+    return place ? {
+      name: place.displayName?.text || query,
+      lat: place.location?.latitude || 22.319,
+      lng: place.location?.longitude || 114.170,
+    } : null;
+  } catch { return null; }
 }
 
 async function queryOverpass(category: string, label: string): Promise<{ name: string; lat: number; lng: number } | null> {
