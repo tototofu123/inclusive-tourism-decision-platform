@@ -1,14 +1,13 @@
-/**
- * mapsDirections.ts
- *
- * Thin wrapper around the Google Maps Directions API.
- * Returns simplified direction metadata for the itinerary.
- */
+import { getRoute } from './routingService';
 
 export interface DirectionsRequest {
   origin: string;
   destination: string;
   mode: 'walking' | 'transit' | 'driving';
+  originLat?: number;
+  originLng?: number;
+  destLat?: number;
+  destLng?: number;
 }
 
 export interface DirectionsResult {
@@ -19,31 +18,17 @@ export interface DirectionsResult {
 }
 
 export async function getDirections(req: DirectionsRequest): Promise<DirectionsResult> {
-  const key = process.env.MAPS_API_KEY;
-  if (!key) throw new Error('MAPS_API_KEY not set');
+  const fromLat = req.originLat ?? 0;
+  const fromLng = req.originLng ?? 0;
+  const toLat = req.destLat ?? 0;
+  const toLng = req.destLng ?? 0;
 
-  const url = new URL('https://maps.googleapis.com/maps/api/directions/json');
-  url.searchParams.set('origin', req.origin);
-  url.searchParams.set('destination', req.destination);
-  url.searchParams.set('mode', req.mode);
-  url.searchParams.set('key', key);
-  url.searchParams.set('language', 'en');
+  const route = await getRoute(fromLat, fromLng, toLat, toLng);
 
-  const resp = await fetch(url.toString());
-  const data = await resp.json() as any;
-
-  if (data.status !== 'OK') {
-    throw new Error(`Maps API error: ${data.status}`);
-  }
-
-  const leg = data.routes[0].legs[0];
   return {
-    duration_mins: Math.ceil(leg.duration.value / 60),
-    distance_m: leg.distance.value,
-    polyline: data.routes[0].overview_polyline?.points,
-    steps: leg.steps.map((s: any) => ({
-      instruction: s.html_instructions.replace(/<[^>]+>/g, ''),
-      distance_m: s.distance.value,
-    })),
+    duration_mins: Math.round((route.duration_seconds || 600) / 60),
+    distance_m: route.distance_meters || 0,
+    polyline: JSON.stringify(route.geometry),
+    steps: [],
   };
 }

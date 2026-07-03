@@ -1,40 +1,20 @@
-/**
- * adkAgents.ts
- *
- * Orchestrates three ADK agents in sequence:
- *   1. PlaceSelector  — retrieves candidate places via cloudRag (Vector Search)
- *   2. RoutePlanner   — orders places + fetches directions via Google Maps
- *   3. CityInsight    — enriches each place with accessibility context
- *
- * Each agent is a structured Vertex AI call with a defined input/output schema.
- * The ADK session ties them together with shared state.
- */
-
-import { VertexAI } from '@google-cloud/vertexai';
+import { chatCompletion } from './apiClient';
 import { queryCandidatePlaces } from './cloudRag';
 import { getDirections } from './mapsDirections';
 import type { ItineraryRequest, ItineraryItem } from './cloudAiGateway';
 
-const PROJECT = process.env.VERTEX_PROJECT_ID!;
-const LOCATION = process.env.VERTEX_LOCATION || 'us-central1';
-const MODEL = process.env.VERTEX_MODEL || 'gemini-2.0-flash';
+const MODEL = process.env.VERTEX_MODEL || 'Qwythos-9B-Claude-Mythos-5-1M-Q4_K_M.gguf';
 
-let _vertex: VertexAI | null = null;
-function getVertex() {
-  if (_vertex) return _vertex;
-  try {
-    _vertex = new VertexAI({ project: PROJECT, location: LOCATION });
-  } catch {
-    return null;
-  }
-  return _vertex;
+interface RawPlace {
+  placeId: string;
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+  accessibilityTags: string[];
 }
 
-// ─── Agent 1: Place Selector ─────────────────────────────────────────────────
-async function runPlaceSelector(
-  req: ItineraryRequest
-): Promise<{ placeId: string; name: string; address: string; accessibilityTags: string[] }[]> {
-  // Step 1: RAG — pull top-K candidates from Vector Search / AlloyDB
+async function runPlaceSelector(req: ItineraryRequest): Promise<RawPlace[]> {
   const candidates = await queryCandidatePlaces({
     query: req.userQuery,
     mobilityTags: req.userProfile.mobilityTags,
@@ -42,68 +22,88 @@ async function runPlaceSelector(
     topK: 20,
   });
 
-  // Step 2: Gemini re-ranks and selects best fit for duration
-  const vertex = getVertex();
-  if (!vertex) throw new Error('Vertex AI not configured — set VERTEX_PROJECT_ID and GOOGLE_APPLICATION_CREDENTIALS');
-  const model = vertex.preview.getGenerativeModel({ model: MODEL });
   const prompt = [
     `You are a Place Selector agent for accessible tourism in ${req.location}.`,
     `User mobility constraints: ${req.userProfile.mobilityTags.join(', ')}.`,
     `Trip duration: ${req.durationHours} hours.`,
     `From the candidates below, select the best ${Math.min(req.durationHours * 2, 8)} places.`,
-    `Return JSON array: [{placeId, name, address, accessibilityTags}]`,
-    `Candidates: ${JSON.stringify(candidates)}`,
+    `Return a JSON array of objects with fields: placeId, name, address. No markdown, no code fences.`,
+    `Candidates: ${JSON.stringify(candidates.map(c => ({ placeId: c.placeId, name: c.name, address: c.address })))}`,
   ].join('\n');
 
-  const resp = await model.generateContent(prompt);
-  const text = resp.response.candidates?.[0]?.content?.parts?.[0]?.text ?? '[]';
-  return JSON.parse(text.replace(/```json|```/g, '').trim());
+  const resp = await chatCompletion([
+    { role: 'system', content: 'You are a helpful travel planning assistant. Return only valid JSON.' },
+    { role: 'user', content: prompt },
+  ]);
+
+  let selected: any[];
+  try {
+    selected = JSON.parse(resp.content.replace(/```json|```/g, '').trim());
+  } catch {
+    selected = candidates.slice(0, Math.min(req.durationHours * 2, 8));
+  }
+
+  return selected.map((s: any) => {
+    const match = candidates.find(c => c.placeId === s.placeId || c.name === s.name);
+    return match || { placeId: s.placeId || '0', name: s.name || 'Unknown', address: s.address || '', lat: 0, lng: 0, accessibilityTags: [] };
+  });
 }
 
-// ─── Agent 2: Route Planner ──────────────────────────────────────────────────
-async function runRoutePlanner(
-  places: Awaited<ReturnType<typeof runPlaceSelector>>,
-  req: ItineraryRequest
-): Promise<ItineraryItem[]> {
-  // Get walking/transit directions between consecutive places
+async function runRoutePlanner(places: RawPlace[], req: ItineraryRequest): Promise<ItineraryItem[]> {
   const withDirections = await Promise.all(
     places.map(async (p, i) => {
       const next = places[i + 1];
       const directions = next
-        ? await getDirections({ origin: p.address, destination: next.address, mode: 'walking' })
+        ? await getDirections({
+            origin: p.name, destination: next.name, mode: 'walking',
+            originLat: p.lat, originLng: p.lng,
+            destLat: next.lat, destLng: next.lng,
+          })
         : null;
-      return { ...p, directions, durationMins: 45 }; // default 45min per stop
+      return { ...p, directions, durationMins: 45 };
     })
   );
 
-  // Calculate arrival times from a 9:00 AM start
   let minutesFromStart = 0;
   return withDirections.map((p) => {
     const hours = Math.floor(minutesFromStart / 60) + 9;
     const mins = minutesFromStart % 60;
     const arrivalTime = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
     minutesFromStart += p.durationMins + (p.directions?.duration_mins ?? 10);
-    return { ...p, arrivalTime };
+    return {
+      placeId: p.placeId,
+      name: p.name,
+      address: p.address,
+      accessibilityTags: p.accessibilityTags,
+      arrivalTime,
+      durationMins: p.durationMins,
+      directions: p.directions || undefined,
+    };
   });
 }
 
-// ─── Agent 3: City Insight ───────────────────────────────────────────────────
 async function runCityInsight(items: ItineraryItem[]): Promise<ItineraryItem[]> {
-  const vertex = getVertex();
-  if (!vertex) throw new Error('Vertex AI not configured — set VERTEX_PROJECT_ID and GOOGLE_APPLICATION_CREDENTIALS');
-  const model = vertex.preview.getGenerativeModel({ model: MODEL });
   const prompt = [
     'You are a City Insight agent. Enrich each place with practical accessibility notes.',
-    'Add a "notes" field (1 sentence) per place. Return the same JSON array with notes added.',
-    JSON.stringify(items),
+    'Add a "notes" field (1 sentence per place) describing accessibility features.',
+    `User mobility constraints are available.`,
+    'Return the same JSON array with a "notes" field added to each object. No markdown, no code fences.',
+    JSON.stringify(items.map(i => ({ placeId: i.placeId, name: i.name, address: i.address, arrivalTime: i.arrivalTime, durationMins: i.durationMins }))),
   ].join('\n');
 
-  const resp = await model.generateContent(prompt);
-  const text = resp.response.candidates?.[0]?.content?.parts?.[0]?.text ?? JSON.stringify(items);
-  return JSON.parse(text.replace(/```json|```/g, '').trim());
+  const resp = await chatCompletion([
+    { role: 'system', content: 'You are a helpful travel planning assistant. Return only valid JSON.' },
+    { role: 'user', content: prompt },
+  ]);
+
+  try {
+    const enriched = JSON.parse(resp.content.replace(/```json|```/g, '').trim());
+    return items.map((item, i) => ({ ...item, notes: enriched[i]?.notes || '' }));
+  } catch {
+    return items;
+  }
 }
 
-// ─── Main ADK pipeline ───────────────────────────────────────────────────────
 export async function runAdkPipeline(req: ItineraryRequest): Promise<ItineraryItem[]> {
   console.log('  [adk] PlaceSelector start');
   const places = await runPlaceSelector(req);

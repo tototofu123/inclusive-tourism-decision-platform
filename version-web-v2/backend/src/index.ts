@@ -1,6 +1,9 @@
 process.on('uncaughtException', e => console.error('UNCAUGHT', e));
 process.on('unhandledRejection', (e: any) => console.error('UNHANDLED', e));
 
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
 import planRouter from './routes/plan';
@@ -11,6 +14,7 @@ import placesRouter from './routes/places';
 import modelsRouter from './routes/models';
 import preferencesRouter from './routes/preferences';
 import gatewayRouter from './routes/gateway';
+import { query } from './db/client';
 
 const LLAMA_HOST = process.env.LLAMA_HOST || 'http://127.0.0.1:8081';
 const app = express();
@@ -41,4 +45,11 @@ app.get('/health', async (_req, res) => {
   }
 });
 
-app.listen(PORT, () => console.log(`MVP Backend on http://localhost:${PORT}`));
+app.listen(PORT, () => {
+  console.log(`MVP Backend on http://localhost:${PORT}`);
+  query(`CREATE TABLE IF NOT EXISTS usage_events (
+    id SERIAL PRIMARY KEY, event TEXT NOT NULL, source TEXT, latency_ms INTEGER,
+    mobility_tags JSONB, location TEXT, place_id TEXT, reason TEXT, ts TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+  )`).catch(() => {});
+});

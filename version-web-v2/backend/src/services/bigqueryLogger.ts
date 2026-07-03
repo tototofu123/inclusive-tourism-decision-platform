@@ -1,30 +1,4 @@
-/**
- * bigqueryLogger.ts
- *
- * Logs anonymised usage events to BigQuery.
- * Always fire-and-forget — never awaited in the request path.
- *
- * Events logged:
- *   - itinerary_generated  (source, latency, mobility tags, location)
- *   - place_viewed         (placeId, accessibility tags)
- *   - fallback_triggered   (reason, error type)
- */
-
-import { BigQuery } from '@google-cloud/bigquery';
-
-const DATASET = process.env.BIGQUERY_DATASET || 'inclusive_tourism';
-const TABLE = process.env.BIGQUERY_TABLE || 'usage_events';
-
-let _client: BigQuery | null = null;
-function getClient() {
-  if (_client) return _client;
-  try {
-    _client = new BigQuery({ projectId: process.env.VERTEX_PROJECT_ID });
-  } catch {
-    return null;
-  }
-  return _client;
-}
+import { query } from '../db/client';
 
 export interface UsageEvent {
   event: string;
@@ -39,19 +13,23 @@ export interface UsageEvent {
 
 const bigqueryLogger = {
   async logEvent(payload: UsageEvent): Promise<void> {
-    if (process.env.BIGQUERY_ENABLED !== 'true') return;
-    const client = getClient();
-    if (!client) return;
     try {
-      await client
-        .dataset(DATASET)
-        .table(TABLE)
-        .insert([{ ...payload, mobilityTags: (payload.mobilityTags ?? []).join(',') }]);
-    } catch (err) {
+      await query(
+        `INSERT INTO usage_events (event, source, latency_ms, mobility_tags, location, place_id, reason, ts)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [
+          payload.event,
+          payload.source || null,
+          payload.latencyMs ?? null,
+          payload.mobilityTags ? JSON.stringify(payload.mobilityTags) : null,
+          payload.location || null,
+          payload.placeId || null,
+          payload.reason || null,
+          payload.ts,
+        ]
+      );
+    } catch {
       // Silent — analytics must never surface to the user
-      if (process.env.NODE_ENV === 'development') {
-        console.debug('  [bq] insert failed (non-fatal):', (err as Error).message);
-      }
     }
   },
 };
