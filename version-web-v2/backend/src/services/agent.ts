@@ -3,7 +3,8 @@ import { query } from '../db/client';
 import { executeTool } from './tools';
 import { chatCompletion } from './apiClient';
 import { sanitizeInput, detectPromptInjection, detectOffTopic } from './guard';
-import { getPreferences, formatPreferences, getHKTime, getWeather, UserPreferences } from './preferencesService';
+import { getGlobalPreferences, formatGlobalPreferences } from './globalPreferencesService';
+import { getHKTime, getWeather } from './timeService';
 
 const SYSTEM_PROMPT_BASE = `You are a helpful Hong Kong travel agent assistant. You cover ALL regions: Kowloon, Hong Kong Island, and New Territories. When a user says "Hong Kong", treat all three regions equally.
 
@@ -22,6 +23,9 @@ Available tools (use when appropriate):
 - get_place_alternatives: similar places
 - check_accessibility: wheelchair access info
 - optimize_route: reorder stops
+- set_preferences: save user preferences. Valid values: mobility (wheelchair/cane/slow/fast/hearing_impaired/visually_impaired), interests (array from: museum, cafe, restaurant, park, temple, shopping_mall, viewpoint, market, art_gallery, historic_site, hotel), budget_level (cheap/medium/expensive), home_base (string).
+
+IMPORTANT — preferences: If the user TELLS you about their mobility, interests, budget, or where they are staying, call set_preferences to remember it. Only use info they explicitly state — do not guess. After calling, tell the user what you saved.
 
 When you need a tool, respond with exactly one line:
 TOOL: toolName { "key": "value", ... }
@@ -120,14 +124,11 @@ export async function processChat(text: string, itineraryId?: number, onThink?: 
 
   emit('Checking preferences...');
 
-  // Load preferences + HK time + weather
-  let userPrefs: UserPreferences = { mobility: 'none', interests: [], budget_level: 'medium', home_base: '', urgent_mode: false, confirmed_itinerary_id: null };
-  if (sessionId) {
-    userPrefs = await getPreferences(sessionId);
-  }
   const hkTime = getHKTime();
   const weather = getWeather(hkTime.hour);
-  const prefsStr = formatPreferences(userPrefs);
+
+  const globalPrefs = await getGlobalPreferences();
+  const prefsStr = formatGlobalPreferences(globalPrefs);
 
   // Build dynamic system prompt with context
   let systemPrompt = SYSTEM_PROMPT_BASE;

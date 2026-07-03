@@ -4,6 +4,7 @@ import { getRoute } from './routingService';
 import { planTrip } from './llmGateway';
 import { getAccessibility } from './accessibilityService';
 import { searchBySemantic } from './ragService';
+import { setGlobalPreferences, getGlobalPreferences } from './globalPreferencesService';
 import { LLMStop } from '../types';
 
 export interface ToolResult {
@@ -57,6 +58,22 @@ export const TOOLS: any[] = [
           place_name: { type: 'string', description: 'Name of the place to check' },
         },
         required: ['place_name'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'set_preferences',
+      description: 'Save or update user preferences globally. Call ONLY when the user explicitly tells you about their mobility, interests, budget, or home base. DO NOT infer or guess — only use info the user directly states. After calling, tell the user what you saved.',
+      parameters: {
+        type: 'object',
+        properties: {
+          mobility: { type: 'string', enum: ['none', 'wheelchair', 'cane', 'slow', 'fast', 'hearing_impaired', 'visually_impaired'], description: 'Mobility status — only set if user explicitly mentions it' },
+          interests: { type: 'array', items: { type: 'string', enum: ['museum', 'cafe', 'restaurant', 'park', 'temple', 'shopping_mall', 'viewpoint', 'market', 'art_gallery', 'historic_site', 'hotel'] }, description: 'Interests — only set if user explicitly mentions categories they like' },
+          budget_level: { type: 'string', enum: ['cheap', 'medium', 'expensive'], description: 'Budget level — only set if user explicitly mentions budget' },
+          home_base: { type: 'string', description: 'Area/neighborhood user is staying in — only set if user explicitly states it' },
+        },
       },
     },
   },
@@ -611,6 +628,43 @@ async function checkAccessibilityTool(placeName: string): Promise<ToolResult> {
   return { response };
 }
 
+function normalizeMobility(v: string): string {
+  const m = v.toLowerCase();
+  if (['wheelchair', 'cane', 'slow', 'fast', 'hearing_impaired', 'visually_impaired'].includes(m)) return m;
+  if (m.includes('wheelchair') || m.includes('chair')) return 'wheelchair';
+  if (m.includes('cane') || m.includes('stick') || m.includes('limited') || m.includes('difficult')) return 'cane';
+  if (m.includes('slow') || m.includes('elderly') || m.includes('old')) return 'slow';
+  if (m.includes('fast') || m.includes('athlete') || m.includes('good')) return 'fast';
+  if (m.includes('hear') || m.includes('deaf')) return 'hearing_impaired';
+  if (m.includes('vis') || m.includes('blind') || m.includes('sight')) return 'visually_impaired';
+  return '';
+}
+
+async function setPreferencesTool(args: any, emit: EmitFn): Promise<ToolResult> {
+  const mobility = firstOf(args, 'mobility', 'speed') || '';
+  const normalized = mobility ? normalizeMobility(mobility) : '';
+  const changes: Record<string, string | string[]> = {};
+  if (normalized) changes.mobility = normalized;
+  if (Array.isArray(args.interests) && args.interests.length > 0) changes.interests = args.interests;
+  if (args.budget_level || args.budget) changes.budget_level = { cheap: 'cheap', moderate: 'medium', medium: 'medium', expensive: 'expensive' }[(args.budget_level || args.budget || '').toLowerCase()] || 'medium';
+  if (args.home_base) changes.home_base = args.home_base;
+
+  if (Object.keys(changes).length === 0) {
+    return { response: 'I didn\'t catch any preferences to save. You can tell me about your mobility, interests, budget, or where you\'re staying.' };
+  }
+
+  await setGlobalPreferences(changes);
+  const prefs = await getGlobalPreferences();
+  const parts: string[] = [];
+  if (prefs.mobility !== 'none') parts.push(`mobility: ${prefs.mobility}`);
+  if (prefs.interests.length > 0) parts.push(`interests: ${prefs.interests.join(', ')}`);
+  if (prefs.budget_level && prefs.budget_level !== 'medium') parts.push(`budget: ${prefs.budget_level}`);
+  if (prefs.home_base) parts.push(`staying in: ${prefs.home_base}`);
+
+  emit('Saved your preferences!');
+  return { response: `I've saved your preferences: ${parts.join('; ')}. I'll use these to tailor recommendations going forward.` };
+}
+
 // ── MTR station data for HK ──
 
 interface MtrStation { name: string; lat: number; lng: number; line: string; zone: string }
@@ -757,6 +811,8 @@ export async function executeTool(name: string, args: any, emit: EmitFn): Promis
       );
     case 'check_accessibility':
       return checkAccessibilityTool(firstOf(args, 'place_name', 'name', 'place', 'location', 'query', 'q'));
+    case 'set_preferences':
+      return setPreferencesTool(args, emit);
     default: return { response: `Unknown tool: ${name}` };
   }
 }

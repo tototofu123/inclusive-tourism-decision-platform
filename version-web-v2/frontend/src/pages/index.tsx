@@ -93,17 +93,15 @@ export default function Home() {
     fetch(`${API}/models`).then(r => r.json()).then(d => { setModels(d.models || []); setCurrentModel(d.current || ''); }).catch(() => {});
   }, [fetchSessions]);
 
-  function loadPrefs(sid?: number) {
-    const id = sid || sessionId;
-    if (!id) return;
-    fetch(`${API}/preferences/${id}`).then(r => r.json()).then(d => {
+  function loadPrefs() {
+    fetch(`${API}/preferences`).then(r => r.json()).then(d => {
       if (d.mobility || d.interests?.length || d.budget_level || d.home_base) {
         setPrefs({ mobility: d.mobility || '', interests: (d.interests || []).join(', '), budget_level: d.budget_level || '', home_base: d.home_base || '' });
       }
     }).catch(() => {});
   }
 
-  useEffect(() => { if (sessionId) loadPrefs(sessionId); }, [sessionId]);
+  useEffect(() => { loadPrefs(); }, []);
 
   useEffect(() => {
     if (!detail) { setMapRoutes([]); return; }
@@ -123,14 +121,13 @@ export default function Home() {
   }, [detail]);
 
   async function savePrefs() {
-    if (!sessionId) return;
     const data = {
       mobility: prefs.mobility,
       interests: prefs.interests.split(',').map(s => s.trim()).filter(Boolean),
       budget_level: prefs.budget_level,
       home_base: prefs.home_base,
     };
-    await fetch(`${API}/preferences/${sessionId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+    await fetch(`${API}/preferences`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
     setShowPrefs(false);
   }
 
