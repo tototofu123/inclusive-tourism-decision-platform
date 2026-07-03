@@ -363,24 +363,24 @@ export default function Home() {
   return (
     <div className="app">
       <div className="header">
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <h1>{sessionTitle || 'Inclusive Tourism'}</h1>
-            {sessionTitle && <div className="subtitle">Kowloon Explorer Agent</div>}
-            {(prefs.mobility || prefs.interests || prefs.budget_level || prefs.home_base) && (
-              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
-                {prefs.mobility && <span className="pref-badge">♿ {prefs.mobility}</span>}
-                {prefs.budget_level && <span className="pref-badge">💰 {prefs.budget_level}</span>}
-                {prefs.home_base && <span className="pref-badge">📍 {prefs.home_base}</span>}
-                {prefs.interests && <span className="pref-badge">🏷 {prefs.interests.slice(0, 30)}{prefs.interests.length > 30 ? '…' : ''}</span>}
-              </div>
-            )}
-          </div>
+        <div className="header-left">
+          <h1>{sessionTitle || 'Inclusive Tourism'}</h1>
+          {(prefs.mobility || prefs.interests || prefs.budget_level || prefs.home_base) && (
+            <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+              {prefs.mobility && <span className="pref-badge">♿ {prefs.mobility}</span>}
+              {prefs.budget_level && <span className="pref-badge">💰 {prefs.budget_level}</span>}
+              {prefs.home_base && <span className="pref-badge">📍 {prefs.home_base}</span>}
+              {prefs.interests && <span className="pref-badge">🏷 {prefs.interests.slice(0, 20)}{prefs.interests.length > 20 ? '…' : ''}</span>}
+            </div>
+          )}
+        </div>
 
+        <div className="header-buttons">
         {tab === 'chat' && (
           <>
             <div ref={sessRef} style={{ position: 'relative' }}>
               <button onClick={() => setShowSessions(x => !x)}
-                style={{ background: 'rgba(255,255,255,.2)', border: '1px solid rgba(255,255,255,.4)', color: 'white', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: '.85rem', whiteSpace: 'nowrap' }}>
+                style={{ background: 'rgba(255,255,255,.2)', border: '1px solid rgba(255,255,255,.4)', color: 'white', padding: '4px 10px', borderRadius: 5, cursor: 'pointer', fontSize: '.78rem', whiteSpace: 'nowrap' }}>
                 Sessions ▾
               </button>
               {showSessions && (
@@ -396,11 +396,11 @@ export default function Home() {
                 </div>
               )}
             </div>
-            <button onClick={newSession} style={{ background: 'rgba(255,255,255,.2)', border: '1px solid rgba(255,255,255,.4)', color: 'white', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: '.85rem', whiteSpace: 'nowrap' }}>
+            <button onClick={newSession} style={{ background: 'rgba(255,255,255,.2)', border: '1px solid rgba(255,255,255,.4)', color: 'white', padding: '4px 10px', borderRadius: 5, cursor: 'pointer', fontSize: '.78rem', whiteSpace: 'nowrap' }}>
               New
             </button>
             <div ref={prefsRef} style={{ position: 'relative' }}>
-              <button onClick={() => setShowPrefs(x => !x)} style={{ background: 'rgba(255,255,255,.15)', border: '1px solid rgba(255,255,255,.3)', color: 'white', padding: '6px 10px', borderRadius: 6, cursor: 'pointer', fontSize: '.75rem', whiteSpace: 'nowrap' }}>
+              <button onClick={() => setShowPrefs(x => !x)} style={{ background: 'rgba(255,255,255,.15)', border: '1px solid rgba(255,255,255,.3)', color: 'white', padding: '4px 8px', borderRadius: 5, cursor: 'pointer', fontSize: '.72rem', whiteSpace: 'nowrap' }}>
                 {Object.values(prefs).some(v => v) ? '★' : ''} Prefs
               </button>
               {showPrefs && (<div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, width: 340, background: 'white', border: '1px solid #e0e0e0', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,.15)', zIndex: 999, padding: 16, maxHeight: 420, overflow: 'auto' }}>
@@ -456,7 +456,7 @@ export default function Home() {
             </div>
             <div ref={modelRef} style={{ position: 'relative' }}>
               <button onClick={() => setShowModels(x => !x)} disabled={modelSwitching}
-                style={{ background: 'rgba(255,255,255,.15)', border: '1px solid rgba(255,255,255,.3)', color: 'white', padding: '6px 10px', borderRadius: 6, cursor: 'pointer', fontSize: '.75rem', whiteSpace: 'nowrap', opacity: modelSwitching ? .6 : 1 }}>
+                style={{ background: 'rgba(255,255,255,.15)', border: '1px solid rgba(255,255,255,.3)', color: 'white', padding: '4px 8px', borderRadius: 5, cursor: 'pointer', fontSize: '.72rem', whiteSpace: 'nowrap', opacity: modelSwitching ? .6 : 1 }}>
                 {modelSwitching ? '⟳' : '⚙'} {currentModel ? currentModel.replace(/\.gguf$/, '').slice(0, 20) : 'Model'}
               </button>
               {showModels && (
@@ -481,7 +481,7 @@ export default function Home() {
 
         {tab === 'itinerary' && (
           <div ref={itinSwitcher} style={{ position: 'relative' }}>
-            <button onClick={() => setShowItinSwitch(x => !x)} style={{ background: 'rgba(255,255,255,.2)', border: '1px solid rgba(255,255,255,.4)', color: 'white', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: '.85rem', whiteSpace: 'nowrap' }}>
+            <button onClick={() => setShowItinSwitch(x => !x)} style={{ background: 'rgba(255,255,255,.2)', border: '1px solid rgba(255,255,255,.4)', color: 'white', padding: '4px 10px', borderRadius: 5, cursor: 'pointer', fontSize: '.78rem', whiteSpace: 'nowrap' }}>
               {currentItineraryId ? `Iten #${currentItineraryId} ▾` : 'Itineraries ▾'}
             </button>
             {showItinSwitch && (
@@ -501,10 +501,11 @@ export default function Home() {
 
         {tab === 'places' && (
           <button onClick={() => setPlacesView(x => x === 'map' ? 'list' : 'map')}
-            style={{ background: 'rgba(255,255,255,.2)', border: '1px solid rgba(255,255,255,.4)', color: 'white', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: '.85rem', whiteSpace: 'nowrap' }}>
+            style={{ background: 'rgba(255,255,255,.2)', border: '1px solid rgba(255,255,255,.4)', color: 'white', padding: '4px 10px', borderRadius: 5, cursor: 'pointer', fontSize: '.78rem', whiteSpace: 'nowrap' }}>
             {placesView === 'map' ? 'List View' : 'Map View'}
           </button>
         )}
+        </div>
       </div>
 
       <div className="content">
@@ -719,8 +720,13 @@ export default function Home() {
 
         {/* Places Tab */}
         <div className={`tab-content map-tab ${tab === 'places' ? 'active' : ''}`} style={{ display: tab === 'places' ? 'flex' : 'none' }}>
+          {(() => {
+            const filteredPlaces = storedPlaces.filter((p: any) => !regionFilter || p.region === regionFilter);
+            const filteredCount = filteredPlaces.length;
+            return (
+            <>
           <div className="map-day-filters" style={{ justifyContent: 'center', color: '#555', fontSize: '.9rem', gap: 8 }}>
-            <span>All Saved Places ({placesTotal})</span>
+            <span>{regionFilter ? `${regionFilter.replace(/_/g, ' ')} (${filteredCount})` : `All Saved Places (${placesTotal})`}</span>
             <select value={regionFilter} onChange={e => setRegionFilter(e.target.value)} style={{ padding: '4px 8px', border: '1px solid #ddd', borderRadius: 4, fontSize: '.8rem', background: 'white' }}>
               <option value="">All regions</option>
               <option value="kowloon">Kowloon</option>
@@ -733,7 +739,7 @@ export default function Home() {
               {placesLoading && <div className="welcome-overlay"><p>Loading places...</p></div>}
               {!placesLoading && storedPlaces.length === 0 && <div className="welcome-overlay"><h2>No places saved</h2></div>}
               <MapView
-                markers={storedPlaces.filter((p: any) => !regionFilter || p.region === regionFilter).map((p: any, i: number) => ({ lat: p.lat, lng: p.lng, label: `${i+1}. ${p.name}${p.category ? ` (${p.category})` : ''}`, category: p.category, day: 1 }))}
+                markers={filteredPlaces.map((p: any, i: number) => ({ lat: p.lat, lng: p.lng, label: `${i+1}. ${p.name}${p.category ? ` (${p.category})` : ''}`, category: p.category, day: 1 }))}
                 routes={[]}
               />
             </div>
@@ -741,7 +747,7 @@ export default function Home() {
             <div className="itinerary-tab" style={{ flex: 1, overflow: 'auto', padding: 12 }}>
               {placesLoading && <div style={{ padding: 20, textAlign: 'center', color: '#888' }}>Loading places...</div>}
               {!placesLoading && storedPlaces.length === 0 && <div className="welcome"><h2>No places saved</h2></div>}
-              {storedPlaces.filter((p: any) => !regionFilter || p.region === regionFilter).map((p: any) => (
+              {filteredPlaces.map((p: any) => (
                 <div key={p.id} style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: 8, padding: 10, marginBottom: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <div style={{ fontWeight: 500, fontSize: '.9rem' }}>{p.name}</div>
@@ -758,6 +764,9 @@ export default function Home() {
               ))}
             </div>
           )}
+            </>
+            );
+          })()}
         </div>
       </div>
 
