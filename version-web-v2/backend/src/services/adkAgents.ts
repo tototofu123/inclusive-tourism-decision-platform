@@ -21,7 +21,12 @@ const MODEL = process.env.VERTEX_MODEL || 'gemini-2.0-flash';
 
 let _vertex: VertexAI | null = null;
 function getVertex() {
-  if (!_vertex) _vertex = new VertexAI({ project: PROJECT, location: LOCATION });
+  if (_vertex) return _vertex;
+  try {
+    _vertex = new VertexAI({ project: PROJECT, location: LOCATION });
+  } catch {
+    return null;
+  }
   return _vertex;
 }
 
@@ -38,7 +43,9 @@ async function runPlaceSelector(
   });
 
   // Step 2: Gemini re-ranks and selects best fit for duration
-  const model = getVertex().preview.getGenerativeModel({ model: MODEL });
+  const vertex = getVertex();
+  if (!vertex) throw new Error('Vertex AI not configured — set VERTEX_PROJECT_ID and GOOGLE_APPLICATION_CREDENTIALS');
+  const model = vertex.preview.getGenerativeModel({ model: MODEL });
   const prompt = [
     `You are a Place Selector agent for accessible tourism in ${req.location}.`,
     `User mobility constraints: ${req.userProfile.mobilityTags.join(', ')}.`,
@@ -82,7 +89,9 @@ async function runRoutePlanner(
 
 // ─── Agent 3: City Insight ───────────────────────────────────────────────────
 async function runCityInsight(items: ItineraryItem[]): Promise<ItineraryItem[]> {
-  const model = getVertex().preview.getGenerativeModel({ model: MODEL });
+  const vertex = getVertex();
+  if (!vertex) throw new Error('Vertex AI not configured — set VERTEX_PROJECT_ID and GOOGLE_APPLICATION_CREDENTIALS');
+  const model = vertex.preview.getGenerativeModel({ model: MODEL });
   const prompt = [
     'You are a City Insight agent. Enrich each place with practical accessibility notes.',
     'Add a "notes" field (1 sentence) per place. Return the same JSON array with notes added.',

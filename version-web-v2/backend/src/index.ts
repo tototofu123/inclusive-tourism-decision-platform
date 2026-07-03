@@ -10,6 +10,7 @@ import sessionsRouter from './routes/sessions';
 import placesRouter from './routes/places';
 import modelsRouter from './routes/models';
 import preferencesRouter from './routes/preferences';
+import gatewayRouter from './routes/gateway';
 
 const LLAMA_HOST = process.env.LLAMA_HOST || 'http://127.0.0.1:8081';
 const app = express();
@@ -24,6 +25,7 @@ app.use(sessionsRouter);
 app.use(placesRouter);
 app.use(modelsRouter);
 app.use(preferencesRouter);
+app.use(gatewayRouter);
 app.get('/health', async (_req, res) => {
   try {
     const controller = new AbortController();

@@ -17,7 +17,12 @@ const TABLE = process.env.BIGQUERY_TABLE || 'usage_events';
 
 let _client: BigQuery | null = null;
 function getClient() {
-  if (!_client) _client = new BigQuery({ projectId: process.env.VERTEX_PROJECT_ID });
+  if (_client) return _client;
+  try {
+    _client = new BigQuery({ projectId: process.env.VERTEX_PROJECT_ID });
+  } catch {
+    return null;
+  }
   return _client;
 }
 
@@ -35,8 +40,10 @@ export interface UsageEvent {
 const bigqueryLogger = {
   async logEvent(payload: UsageEvent): Promise<void> {
     if (process.env.BIGQUERY_ENABLED !== 'true') return;
+    const client = getClient();
+    if (!client) return;
     try {
-      await getClient()
+      await client
         .dataset(DATASET)
         .table(TABLE)
         .insert([{ ...payload, mobilityTags: (payload.mobilityTags ?? []).join(',') }]);
