@@ -2,8 +2,8 @@ import { query } from '../db/client';
 
 export async function searchBySemantic(queryText: string, topK = 5): Promise<any[]> {
   try {
-    const terms = queryText.toLowerCase().split(/\s+/).filter(t => t.length > 2).join(' & ');
-    if (!terms) return [];
+    const words = queryText.toLowerCase().split(/\s+/).filter(t => t.length > 2);
+    if (words.length === 0) return [];
     const rows = await query(
       `SELECT id, name, lat, lng, description, category, region, accessibility_score, accessibility_tags,
         ts_rank(to_tsvector('english', COALESCE(name,'') || ' ' || COALESCE(description,'')), plainto_tsquery('english', $1)) AS rank

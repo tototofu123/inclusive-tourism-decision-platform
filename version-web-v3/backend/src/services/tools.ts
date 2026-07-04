@@ -327,7 +327,7 @@ async function searchPlaces(query_text: string, region: string, budget: string, 
 
   const filtered = places.filter(p => !p.label.match(/^[a-z_]+ \(Kowloon\)$/));
   const allPlaces = semanticPlaces.length > 0
-    ? [...semanticPlaces, ...filtered].filter((p, i, a) => a.findIndex(x => x.placeId === p.placeId) === i)
+    ? [...new Map([...semanticPlaces, ...filtered].map(p => [p.placeId, p])).values()]
     : filtered;
   const names = allPlaces.length > 0 ? allPlaces.map(p => `- ${p.label}`).join('\n') : '(no curated places found for this search)';
   const placesOut = allPlaces.length > 0
@@ -357,12 +357,14 @@ async function createItineraryTool(days: number, preferences: string, emit: Emit
     if (old.rows.length > 0) context = old.rows.map((r: any) => `- ${r.label || r.name} (${r.category})`).join('\n');
   }
 
-  const llmPlan = await planTrip(preferences, context);
+  const globalPrefs = await getGlobalPreferences();
+  const mobCtx = globalPrefs.mobility && globalPrefs.mobility !== 'none' ? `User has ${globalPrefs.mobility} mobility. Prioritize step-free venues.` : undefined;
+  const llmPlan = await planTrip(preferences, context, mobCtx);
   const categories = [...new Set(llmPlan.stops.map((s: any) => s.category))];
   const searchMsg = `Searching for places: ${categories.join(', ')}`;
   emit(searchMsg); th.push(searchMsg);
 
-  let resolved = await resolveStops(llmPlan.stops, region);
+  let resolved = await resolveStops(llmPlan.stops, region, globalPrefs.budget_level !== 'medium' ? globalPrefs.budget_level : undefined);
   const foundMsg = `Found ${resolved.length} accessible places for your trip`;
   emit(foundMsg); th.push(foundMsg);
 
@@ -381,6 +383,12 @@ async function createItineraryTool(days: number, preferences: string, emit: Emit
     dayMap.set(s.label || s.category || `stop_${idx}`, s.day || currentDay);
   });
 
+  const routeQueries = resolved.length > 1
+    ? await Promise.all(resolved.slice(1).map((_, i) =>
+        getRoute(resolved[i].lat, resolved[i].lng, resolved[i + 1].lat, resolved[i + 1].lng)
+      ))
+    : [];
+
   for (let i = 0; i < resolved.length; i++) {
     const p = resolved[i];
     const llmDay = dayMap.get(p.label || `stop_${i}`) || currentDay;
@@ -390,13 +398,8 @@ async function createItineraryTool(days: number, preferences: string, emit: Emit
     hour += Math.ceil(p.duration / 60);
     const et = `${String(hour).padStart(2, '0')}:00`;
 
-    let route = null;
-    let dist = 0;
-    if (i > 0) {
-      const prev = resolved[i - 1];
-      route = await getRoute(prev.lat, prev.lng, p.lat, p.lng);
-      dist = route.distance_meters;
-    }
+    const route = i > 0 ? routeQueries[i - 1] : null;
+    const dist = route?.distance_meters || 0;
 
     await saveItineraryItem({
       itinerary_id: itineraryId, place_id: p.placeId, stop_index: i, label: p.label,
@@ -598,8 +601,8 @@ async function findTransportTool(fromName: string, fromLat: number, fromLng: num
 
   const nearestFrom = findNearestMtr(from.lat, from.lng);
   const nearestTo = findNearestMtr(to.lat, to.lng);
-  const walkToStation = nearestFrom ? Math.round(haversine(from.lat, from.lng, nearestFrom.lat, nearestFrom.lng) / 80) : 0;
-  const walkFromStation = nearestTo ? Math.round(haversine(to.lat, to.lng, nearestTo.lat, nearestTo.lng) / 80) : 0;
+  const walkToStation = nearestFrom ? Math.round(haversineMeters(from.lat, from.lng, nearestFrom.lat, nearestFrom.lng) / 80) : 0;
+  const walkFromStation = nearestTo ? Math.round(haversineMeters(to.lat, to.lng, nearestTo.lat, nearestTo.lng) / 80) : 0;
   const mtrTime = nearestFrom && nearestTo ? estimateMtrTime(nearestFrom.name, nearestTo.name) : 0;
   const totalMtr = walkToStation + mtrTime + walkFromStation;
 
@@ -632,9 +635,9 @@ async function getTravelTimeTool(fromLat: number, fromLng: number, toLat: number
     const route = await getRoute(from.lat, from.lng, to.lat, to.lng);
     return { response: `No MTR nearby. Walking: ${Math.round(route.duration_seconds / 60)} min.` };
   }
-  const w1 = Math.round(haversine(from.lat, from.lng, nearestFrom.lat, nearestFrom.lng) / 80);
+  const w1 = Math.round(haversineMeters(from.lat, from.lng, nearestFrom.lat, nearestFrom.lng) / 80);
   const mtr = estimateMtrTime(nearestFrom.name, nearestTo.name);
-  const w2 = Math.round(haversine(to.lat, to.lng, nearestTo.lat, nearestTo.lng) / 80);
+  const w2 = Math.round(haversineMeters(to.lat, to.lng, nearestTo.lat, nearestTo.lng) / 80);
   return { response: `Transit via MTR: walk ${w1} min → ${nearestFrom.name} → ${mtr} min MTR → ${nearestTo.name} → walk ${w2} min. Total: ~${w1 + mtr + w2} min.` };
 }
 
@@ -926,22 +929,16 @@ function estimateMtrTime(from: string, to: string): number {
   return 20;
 }
 
-function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLng = (lng2 - lng1) * Math.PI / 180;
-  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-            Math.sin(dLng/2) * Math.sin(dLng/2);
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
+export function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLng = (lng2 - lng1) * Math.PI / 180;
   const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  return haversineMeters(lat1, lng1, lat2, lng2) / 1000;
 }
 
 function firstOf(args: any, ...keys: string[]): any {

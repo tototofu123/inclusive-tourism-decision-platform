@@ -65,7 +65,7 @@ function toGenAiContents(messages: any[]): { contents: any[]; systemInstruction?
         role: 'user',
         parts: [{
           functionResponse: {
-            name: msg.tool_call_id?.replace(/^call_/, '') || 'unknown',
+            name: msg.name || 'unknown',
             response: { response: parsed },
           },
         }],

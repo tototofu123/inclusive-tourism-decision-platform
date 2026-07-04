@@ -1,7 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { execSync } from 'child_process';
-import fs from 'fs';
-import path from 'path';
+import fs from 'fs/promises';
 
 export interface UserSettings {
   provider: 'gemini' | 'vertex' | 'local' | 'custom';
@@ -19,13 +17,13 @@ let settings: UserSettings = {
 
 const router = Router();
 
-router.get('/settings', (_req: Request, res: Response) => {
+router.get('/settings', async (_req: Request, res: Response) => {
   const safe = { ...settings };
   if (safe.customApiKey) safe.customApiKey = '••••••••';
   res.json(safe);
 });
 
-router.put('/settings', (req: Request, res: Response) => {
+router.put('/settings', async (req: Request, res: Response) => {
   const body = req.body as Partial<UserSettings>;
   if (body.provider) settings.provider = body.provider;
   if (body.model !== undefined) settings.model = body.model;
@@ -36,26 +34,28 @@ router.put('/settings', (req: Request, res: Response) => {
   res.json(safe);
 });
 
-router.get('/models', (_req: Request, res: Response) => {
-  const LLAMA_HOST = process.env.LLAMA_HOST || 'http://127.0.0.1:8081';
-  fetch(`${LLAMA_HOST}/v1/models`)
-    .then(r => r.json())
-    .then((data: any) => {
-      const models = (data.data || []).map((m: any) => m.id);
-      res.json({ models, current: settings.model });
-    })
-    .catch(() => {
-      const modelsDir = process.env.LLAMA_MODELS_DIR || '';
-      if (modelsDir && fs.existsSync(modelsDir)) {
-        const models = fs.readdirSync(modelsDir).filter(f => f.endsWith('.gguf'));
+router.get('/models', async (_req: Request, res: Response) => {
+  try {
+    const LLAMA_HOST = process.env.LLAMA_HOST || 'http://127.0.0.1:8081';
+    const r = await fetch(`${LLAMA_HOST}/v1/models`);
+    const data = await r.json() as any;
+    const models = (data.data || []).map((m: any) => m.id);
+    res.json({ models, current: settings.model });
+  } catch {
+    const modelsDir = process.env.LLAMA_MODELS_DIR || '';
+    if (modelsDir) {
+      try {
+        const entries = await fs.readdir(modelsDir);
+        const models = entries.filter(f => f.endsWith('.gguf'));
         res.json({ models, current: settings.model });
-      } else {
-        res.json({ models: [settings.model], current: settings.model });
-      }
-    });
+        return;
+      } catch { /* fallthrough */ }
+    }
+    res.json({ models: [settings.model], current: settings.model });
+  }
 });
 
-router.post('/models/switch', (req: Request, res: Response) => {
+router.post('/models/switch', async (req: Request, res: Response) => {
   const { model } = req.body as { model: string };
   if (!model) {
     res.status(400).json({ error: 'Model name required' });

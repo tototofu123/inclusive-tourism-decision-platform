@@ -38,50 +38,49 @@ const HK_LOCATION_RESTRICTION = {
   circle: { center: { latitude: 22.3193, longitude: 114.1694 }, radius: 25000 },
 };
 
-export async function runPlacesPipeline(limit = 20): Promise<{ added: number; skipped: number }> {
+export async function runPlacesPipeline(maxQueries = 20): Promise<{ added: number; skipped: number }> {
   let added = 0;
   let skipped = 0;
 
-  for (const queryStr of SEARCH_QUERIES.slice(0, limit)) {
-    try {
-      const results = await searchGooglePlaces(queryStr);
-      for (const place of results) {
-        const existing = await query(
-          'SELECT id FROM places WHERE LOWER(name) = LOWER($1) LIMIT 1',
-          [place.name],
-        );
-        if (existing.rows.length > 0) { skipped++; continue; }
+  const results = await Promise.allSettled(
+    SEARCH_QUERIES.slice(0, maxQueries).map(q => searchGooglePlaces(q))
+  );
+  for (const result of results) {
+    if (result.status === 'rejected') continue;
+    for (const place of result.value) {
+      const existing = await query(
+        'SELECT id FROM places WHERE LOWER(name) = LOWER($1) LIMIT 1',
+        [place.name],
+      );
+      if (existing.rows.length > 0) { skipped++; continue; }
 
-        const tags: string[] = [];
-        if (place.accessibilityOptions?.wheelchairAccessibleEntrance) tags.push('step-free access');
-        if (place.accessibilityOptions?.wheelchairAccessibleRestroom) tags.push('accessible toilet');
-        if (place.accessibilityOptions?.wheelchairAccessibleParking) tags.push('accessible parking');
-        if (place.accessibilityOptions?.wheelchairAccessibleSeating) tags.push('accessible seating');
+      const tags: string[] = [];
+      if (place.accessibilityOptions?.wheelchairAccessibleEntrance) tags.push('step-free access');
+      if (place.accessibilityOptions?.wheelchairAccessibleRestroom) tags.push('accessible toilet');
+      if (place.accessibilityOptions?.wheelchairAccessibleParking) tags.push('accessible parking');
+      if (place.accessibilityOptions?.wheelchairAccessibleSeating) tags.push('accessible seating');
 
-        const category = inferCategory(place.types || []);
-        const lat = place.location?.lat || 22.3193;
-        const lng = place.location?.lng || 114.1694;
-        const score = tags.length >= 2 ? 5 : tags.length === 1 ? 3 : 1;
+      const category = inferCategory(place.types || []);
+      const lat = place.location?.lat || 22.3193;
+      const lng = place.location?.lng || 114.1694;
+      const score = tags.length >= 2 ? 5 : tags.length === 1 ? 3 : 1;
 
-        await query(
-          `INSERT INTO places (name, category, lat, lng, description, accessibility_tags, accessibility_score, region)
-           SELECT $1, $2, $3, $4, $5, $6, $7, $8
-           WHERE NOT EXISTS (SELECT 1 FROM places WHERE LOWER(name) = LOWER($1) AND ABS(lat - $3) < 0.01 AND ABS(lng - $4) < 0.01)`,
-          [
-            place.name,
-            category,
-            lat,
-            lng,
-            `${place.formattedAddress || ''}${place.rating ? ` · Rating: ${place.rating}/5` : ''}`,
-            tags,
-            score,
-            inferRegion(lat, lng),
-          ],
-        );
-        added++;
-      }
-    } catch (err) {
-      console.error(`Places pipeline error for "${queryStr}":`, (err as Error).message);
+      await query(
+        `INSERT INTO places (name, category, lat, lng, description, accessibility_tags, accessibility_score, region)
+         SELECT $1, $2, $3, $4, $5, $6, $7, $8
+         WHERE NOT EXISTS (SELECT 1 FROM places WHERE LOWER(name) = LOWER($1) AND ABS(lat - $3) < 0.01 AND ABS(lng - $4) < 0.01)`,
+        [
+          place.name,
+          category,
+          lat,
+          lng,
+          `${place.formattedAddress || ''}${place.rating ? ` · Rating: ${place.rating}/5` : ''}`,
+          tags,
+          score,
+          inferRegion(lat, lng),
+        ],
+      );
+      added++;
     }
   }
 

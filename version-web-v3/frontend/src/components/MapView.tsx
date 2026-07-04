@@ -71,8 +71,8 @@ export default function MapView({
       if (m.type === 'saved') {
         icon = L.divIcon({
           className: '',
-          html: `<div style="width:8px;height:8px;background:#999;border-radius:1px;opacity:0.5;border:1px solid #bbb"></div>`,
-          iconSize: [8, 8], iconAnchor: [4, 4],
+          html: `<div style="width:16px;height:16px;background:#999;border-radius:2px;opacity:0.6;border:1.5px solid #bbb;cursor:pointer" aria-label="Saved place: ${m.label}"></div>`,
+          iconSize: [16, 16], iconAnchor: [8, 8],
         });
         popup = `<b>${m.label}</b>`;
       } else {
@@ -121,5 +121,5 @@ export default function MapView({
     }
   }, [markers, routes]);
 
-  return <div ref={el} className={className} style={{ height: '100%', width: '100%' }} />;
+  return <div ref={el} className={className} role="application" aria-label="Accessibility map with place markers and routes" style={{ height: '100%', width: '100%' }} />;
 }

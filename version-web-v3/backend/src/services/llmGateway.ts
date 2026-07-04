@@ -12,14 +12,19 @@ Rules:
 - Assign each stop to a day (1-indexed) — max 4 stops per day, spread stops across all days evenly
 - If user mentions focus areas (e.g. "culture", "shopping", "nature"), prioritize matching categories
 - Include hotel/lodging recommendations if user asks where to stay
+- If user has mobility needs or accessibility preferences, factor them into the plan
 
 Output format:
 {"stops":[{"label":"Place Name","category":"museum","approx_duration_minutes":60,"day":1,"notes":"accessibility note"}],"total_duration_minutes":300,"days":1,"focus_areas":["culture","history"]}`;
 
-export async function planTrip(userText: string, context?: string): Promise<LLMResponse> {
+export async function planTrip(userText: string, context?: string, mobilityContext?: string): Promise<LLMResponse> {
   console.log('planTrip: calling LLM...');
   let prompt = `${PROMPT}\n\nPlan a trip for: ${userText}\n\nJSON:`;
   if (context) prompt = `${PROMPT}\n\nExisting trip context:\n${context}\n\nModify or replace based on the new request: ${userText}\n\nJSON:`;
+  if (mobilityContext) {
+    prompt = `${PROMPT}\n\nUser accessibility/mobility context:\n${mobilityContext}\n\nPlan a trip for: ${userText}\n\nJSON:`;
+    if (context) prompt = `${PROMPT}\n\nUser accessibility/mobility context:\n${mobilityContext}\n\nExisting trip context:\n${context}\n\nModify or replace based on the new request: ${userText}\n\nJSON:`;
+  }
   try {
     const r = await chatCompletion(
       [
@@ -35,41 +40,6 @@ export async function planTrip(userText: string, context?: string): Promise<LLMR
   } catch (err) {
     console.error('LLM failed:', (err as Error).message);
     throw new Error('LLM unavailable — start llama-server or try again later');
-  }
-}
-
-export async function llmClassify(userText: string, hasItinerary: boolean): Promise<string> {
-  const prompt = `Classify this Kowloon travel request into exactly one word.
-
-Options:
-- plan_trip: user wants to create/plan/build/make/design a new itinerary or trip
-- find_places: user wants to find/search/look for/discover places, attractions, restaurants, cafes, parks, etc.
-- add_to_itinerary: user wants to add/include/insert more stops to an existing itinerary
-- modify_itinerary: user wants to change/remove/delete/exclude/skip/modify stops in an itinerary
-- get_info: user is asking about an existing itinerary — how many stops, what's planned, details, spots, summary
-- respond: general question, chat, or anything else
-
-User: "${userText}"
-${hasItinerary ? 'Active itinerary exists' : 'No active itinerary'}
-Keyword:`;
-
-  try {
-    const r = await chatCompletion(
-      [
-        { role: 'system', content: 'You classify requests. Respond with one word only.' },
-        { role: 'user', content: prompt },
-      ],
-      undefined,
-      { temperature: 0, maxTokens: 64 },
-    );
-    const content = r.content.trim().toLowerCase();
-    const valid = ['plan_trip', 'find_places', 'add_to_itinerary', 'modify_itinerary', 'get_info', 'respond'];
-    const matched = valid.find(v => content.includes(v));
-    console.log('llmClassify:', content, '→', matched || 'respond');
-    return matched || 'respond';
-  } catch (err) {
-    console.error('LLM classify failed:', (err as Error).message);
-    return 'respond';
   }
 }
 

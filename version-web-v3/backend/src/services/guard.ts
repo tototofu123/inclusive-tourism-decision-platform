@@ -1,12 +1,16 @@
 const INJECTION_PATTERNS: RegExp[] = [
-  /ignore\s+(all\s+)?(previous\s+)?(your\s+)?instructions/i,
-  /forget\s+(all\s+)?(previous\s+)?(your\s+)?(instructions|directives)/i,
-  /override\s+(system\s+)?prompt/i,
+  /ign(ore|oring)\s+(all\s+)?(previous\s+)?(your\s+)?instructions/i,
+  /forget\s+(all\s+)?(previous\s+)?(your\s+)?(instructions|directives|rules)/i,
+  /overrid(e|ing)\s+(system\s+)?prompt/i,
   /reveal\s+your\s+(system\s+)?prompt/i,
-  /what\s+(are\s+)?your\s+(system\s+)?(instructions|prompt|rules)/i,
-  /tell\s+me\s+your\s+(system\s+)?prompt/i,
-  /act\s+as\s+(a\s+)?(different|new|another)\s+(persona|character|role|ai|assistant|system)/i,
+  /what\s+(are\s+)?your\s+(system\s+)?(instructions|prompt|rules|directives)/i,
+  /(tell|show|give|print|display|output|write|send)\s+me\s+your\s+(system\s+)?prompt/i,
+  /act\s+as\s+(a\s+)?(different|new|another)\s+(persona|character|role|ai|assistant|system|bot)/i,
   /do\s+anything\s+now/i,
+  /you\s+(are|must|will|should|need\s+to)\s+(ignore|disregard|bypass)/i,
+  /(ignore|disregard|bypass|override)\s+(all\s+)?(prior|previous|above|system)/i,
+  /your\s+(system\s+)?(prompt|instructions|rules)\s+(is|are|was)/i,
+  /(new\s+)?(instruction|directive|order|rule)[\s:]+/i,
 ];
 
 const OFF_TOPIC_PATTERNS: RegExp[] = [
@@ -36,7 +40,6 @@ export function detectPromptInjection(text: string): string | null {
 }
 
 export function detectOffTopic(text: string): string | null {
-  if (text.length > 500) return null;
   for (const pattern of OFF_TOPIC_PATTERNS) {
     if (pattern.test(text)) {
       return 'I can only help with Kowloon travel planning - places, itineraries, and accessibility information.';

@@ -1,5 +1,6 @@
 const OSRM_BASE = process.env.OSRM_BASE || 'https://router.project-osrm.org';
 const MAPS_API_KEY = process.env.MAPS_API_KEY || '';
+import { haversineMeters } from './tools';
 
 export async function getRoute(fromLat: number, fromLng: number, toLat: number, toLng: number) {
   if (MAPS_API_KEY) {
@@ -128,7 +129,7 @@ function decodePolyline(encoded: string): [number, number][] {
 }
 
 function haversineFallback(fromLat: number, fromLng: number, toLat: number, toLng: number) {
-  const dist = haversine(fromLat, fromLng, toLat, toLng);
+  const dist = haversineMeters(fromLat, fromLng, toLat, toLng);
   const roadDist = dist * 1.4;
   const durSec = Math.round(roadDist / 1.4);
   return {
@@ -138,8 +139,3 @@ function haversineFallback(fromLat: number, fromLng: number, toLat: number, toLn
   };
 }
 
-function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371000, dLat = (lat2 - lat1) * Math.PI / 180, dLng = (lng2 - lng1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}

@@ -65,9 +65,8 @@ export async function savePlace(place: { name: string; lat: number; lng: number;
 export async function listPlaces(limit = 50, offset = 0) {
   const cacheKey = `places_${limit}_${offset}`;
   return cachedQuery(cacheKey, async () => {
-    const r = await query('SELECT * FROM places ORDER BY name LIMIT $1 OFFSET $2', [limit, offset]);
-    const c = await query('SELECT COUNT(*) as t FROM places');
-    return { places: r.rows, total: parseInt(c.rows[0].t) };
+    const r = await query('SELECT *, COUNT(*) OVER() as total_count FROM places ORDER BY name LIMIT $1 OFFSET $2', [limit, offset]);
+    return { places: r.rows, total: r.rows.length > 0 ? parseInt(r.rows[0].total_count) : 0 };
   }, 30_000);
 }
 

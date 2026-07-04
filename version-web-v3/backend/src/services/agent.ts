@@ -4,7 +4,29 @@ import { executeTool } from './tools';
 import { chatCompletion } from './apiClient';
 import { sanitizeInput, detectPromptInjection, detectOffTopic } from './guard';
 import { getGlobalPreferences, formatGlobalPreferences } from './globalPreferencesService';
-import { getHKTime, getWeather } from './timeService';
+
+function getHKTime(): { datetime: string; weekday: string; hour: number; dateStr: string } {
+  const now = new Date();
+  const opts = { timeZone: 'Asia/Hong_Kong', hour12: false } as const;
+  const hkStr = now.toLocaleString('en-HK', opts);
+  const hkDate = new Date(hkStr);
+  return {
+    datetime: hkStr,
+    weekday: ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][hkDate.getDay()],
+    hour: hkDate.getHours(),
+    dateStr: hkDate.toISOString().split('T')[0],
+  };
+}
+
+function getWeather(hour: number): string {
+  if (hour < 6) return 'night, cool ~23°C';
+  if (hour < 9) return 'sunrise, mild ~25°C';
+  if (hour < 12) return 'morning, warm ~28°C';
+  if (hour < 15) return 'afternoon, hot ~32°C';
+  if (hour < 18) return 'late afternoon, warm ~30°C';
+  if (hour < 21) return 'evening, mild ~26°C';
+  return 'night, cool ~23°C';
+}
 
 const SYSTEM_PROMPT_BASE = `You are an HK accessibility travel assistant. Cover Kowloon, HK Island, New Territories.
 
@@ -83,14 +105,10 @@ export async function processChat(
         'SELECT DISTINCT ON (role, content) role, content FROM session_messages WHERE session_id=$1 ORDER BY role, content, created_at LIMIT 20',
         [sessionId],
       );
-      const seen = new Set<string>();
       for (const row of hist.rows) {
         const role = row.role === 'assistant' ? 'assistant' : 'user';
         const content = (row.content || '').trim();
-        if (content && !seen.has(`${role}|${content}`)) {
-          seen.add(`${role}|${content}`);
-          messages.push({ role, content });
-        }
+        if (content) messages.push({ role, content });
       }
     } catch { /* non-fatal */ }
   }
@@ -181,6 +199,7 @@ async function agentLoop(
           role: 'tool',
           content: JSON.stringify({ response: result.response, places: result.places, itinerary: result.itinerary }),
           tool_call_id: tc.toolCallId || `call_${tc.name}_${Date.now()}`,
+          name: tc.name,
         });
       } catch (toolErr) {
         const errMsg = `Tool ${tc.name} failed: ${(toolErr as Error).message}`;
@@ -189,6 +208,7 @@ async function agentLoop(
           role: 'tool',
           content: JSON.stringify({ error: errMsg }),
           tool_call_id: tc.toolCallId || `call_${tc.name}_${Date.now()}`,
+          name: tc.name,
         });
       }
     }

@@ -1,6 +1,9 @@
 import { query } from '../db/client';
+import { HK_BBOX } from '../constants';
 
 const OVERPASS_BASE = process.env.OVERPASS_BASE || 'https://overpass-api.de/api/interpreter';
+const overpassCache = new Map<string, { data: any; ts: number }>();
+const OVERPASS_CACHE_TTL = 1_800_000; // 30 min
 
 export interface AccessibilityInfo {
   placeName: string;
@@ -145,9 +148,12 @@ async function queryDbAccessibility(name: string): Promise<AccessibilityInfo | n
 
 async function queryOverpassAccessibility(name: string): Promise<AccessibilityInfo | null> {
   const encoded = name.replace(/\(.*?\)/g, '').replace(/[^a-z0-9\s]/gi, '').trim().toLowerCase().slice(0, 50);
+  const cacheKey = `overpass_${encoded}`;
+  const cached = overpassCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < OVERPASS_CACHE_TTL) return cached.data;
   try {
     const body = new URLSearchParams({
-      data: `[out:json][timeout:10];(node["wheelchair"~"${encoded}",i](22.15,113.80,22.55,114.40);way["wheelchair"~"${encoded}",i](22.15,113.80,22.55,114.40););out body 3;`,
+      data: `[out:json][timeout:10];(node["wheelchair"~"${encoded}",i](${HK_BBOX});way["wheelchair"~"${encoded}",i](${HK_BBOX}););out body 3;`,
     });
     const res = await fetch(OVERPASS_BASE, {
       method: 'POST',
@@ -174,7 +180,7 @@ async function queryOverpassAccessibility(name: string): Promise<AccessibilityIn
     if (el.tags.hearing_loop === 'yes') tags.push('hearing loop');
     if (el.tags.braille === 'yes') tags.push('braille signage');
 
-    return {
+    const result: AccessibilityInfo = {
       placeName: el.tags.name || name,
       wheelchair: wc,
       stepFreeEntrance: wc === 'yes' || el.tags.ramp === 'yes',
@@ -186,13 +192,22 @@ async function queryOverpassAccessibility(name: string): Promise<AccessibilityIn
         ? `From OpenStreetMap: ${tags.join(', ')}.`
         : `Wheelchair access: ${wcTag}. No additional detail.`,
     };
+    overpassCache.set(cacheKey, { data: result, ts: Date.now() });
+    if (overpassCache.size > 50) {
+      const oldest = [...overpassCache.entries()].sort((a, b) => a[1].ts - b[1].ts)[0];
+      if (oldest) overpassCache.delete(oldest[0]);
+    }
+    return result;
   } catch { return null; }
 }
 
 export async function queryAllAccessibility(
 ): Promise<{ lat: number; lng: number; tags: Record<string, string> }[]> {
+  const cacheKey = 'all_access';
+  const cached = overpassCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < OVERPASS_CACHE_TTL) return cached.data;
   try {
-    const q = '[out:json][timeout:20];(node["wheelchair"](22.15,113.80,22.55,114.40);way["wheelchair"](22.15,113.80,22.55,114.40););out body 20;';
+    const q = `[out:json][timeout:20];(node["wheelchair"](${HK_BBOX});way["wheelchair"](${HK_BBOX}););out body 20;`;
     const res = await fetch(OVERPASS_BASE, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'InclusiveTourismV3/1.0' },
@@ -200,10 +215,16 @@ export async function queryAllAccessibility(
     });
     if (!res.ok) return [];
     const data = await res.json() as any;
-    return (data.elements || []).map((el: any) => ({
+    const result = (data.elements || []).map((el: any) => ({
       lat: el.lat || el.center?.lat || 0,
       lng: el.lon || el.center?.lon || 0,
       tags: el.tags || {},
     }));
+    overpassCache.set(cacheKey, { data: result, ts: Date.now() });
+    if (overpassCache.size > 20) {
+      const oldest = [...overpassCache.entries()].sort((a, b) => a[1].ts - b[1].ts)[0];
+      if (oldest) overpassCache.delete(oldest[0]);
+    }
+    return result;
   } catch { return []; }
 }

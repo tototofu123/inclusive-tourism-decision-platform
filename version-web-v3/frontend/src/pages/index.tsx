@@ -87,15 +87,18 @@ export default function Home() {
     customApiKey: '',
   });
   const settingsRef = useRef<HTMLDivElement>(null);
+  const [toast, setToast] = useState('');
 
   useEffect(() => { if (tab === 'chat') msgEnd.current?.scrollIntoView() }, [msgs, tab]);
+
+  useEffect(() => { if (toast) { const t = setTimeout(() => setToast(''), 3000); return () => clearTimeout(t); } }, [toast]);
 
   useEffect(() => {
     if (sessionId) localStorage.setItem('v3_session_id', String(sessionId));
   }, [sessionId]);
 
   const fetchSessions = useCallback(() => {
-    fetch(`${API}/sessions`).then(r => r.json()).then(setSessions).catch(() => {});
+    fetch(`${API}/sessions`).then(r => r.json()).then(setSessions).catch((e) => { console.error('Failed to fetch sessions:', e); });
   }, []);
 
   useEffect(() => {
@@ -104,11 +107,11 @@ export default function Home() {
       const sid = parseInt(savedSessionId);
       if (!isNaN(sid)) loadSession(sid);
     }
-    fetch(`${API}/itineraries`).then(r => r.json()).then(d => setItineraries(d)).catch(() => {});
+    fetch(`${API}/itineraries`).then(r => r.json()).then(d => setItineraries(d)).catch(e => { console.error('Failed to load itineraries:', e); setToast('Failed to load itineraries'); });
     fetchSessions();
-    fetch(`${API}/places`).then(r => r.json()).then(d => { setStoredPlaces(d.places || []); setPlacesTotal(d.total || 0); }).catch(() => {});
-    fetch(`${API}/models`).then(r => r.json()).then(d => { setModels(d.models || []); setCurrentModel(d.current || ''); }).catch(() => {});
-    fetch(`${API}/settings`).then(r => r.json()).then(d => setSettings(d)).catch(() => {});
+    fetch(`${API}/places`).then(r => r.json()).then(d => { setStoredPlaces(d.places || []); setPlacesTotal(d.total || 0); }).catch(e => { console.error('Failed to load places:', e); setToast('Failed to load places'); });
+    fetch(`${API}/models`).then(r => r.json()).then(d => { setModels(d.models || []); setCurrentModel(d.current || ''); }).catch(e => { console.error('Failed to load models:', e); });
+    fetch(`${API}/settings`).then(r => r.json()).then(d => setSettings(d)).catch(e => { console.error('Failed to load settings:', e); });
   }, [fetchSessions]);
 
   function loadPrefs() {
@@ -116,7 +119,7 @@ export default function Home() {
       if (d.mobility || d.interests?.length || d.budget_level || d.home_base) {
         setPrefs({ mobility: d.mobility || '', interests: (d.interests || []).join(', '), budget_level: d.budget_level || '', home_base: d.home_base || '' });
       }
-    }).catch(() => {});
+    }).catch(e => { console.error('Failed to load preferences:', e); });
   }
 
   useEffect(() => { loadPrefs(); }, []);
@@ -186,9 +189,10 @@ export default function Home() {
       if (detailTimerRef.current) clearTimeout(detailTimerRef.current);
       setDetail(d);
       setDetailLoading(false);
-    }).catch(() => {
+    }).catch(e => {
       if (detailTimerRef.current) clearTimeout(detailTimerRef.current);
       setDetailLoading(false);
+      console.error('Failed to load detail:', e);
     });
   }
 
@@ -214,7 +218,7 @@ export default function Home() {
       setShowSessions(false);
       setShowItinSwitch(false);
       setTab('chat');
-    }).catch(() => {});
+    }).catch(e => { console.error('Failed to load session:', e); setToast('Failed to load session'); });
   }
 
   async function send(text: string) {
@@ -312,7 +316,7 @@ export default function Home() {
             setSessionTitle(result.sessionTitle);
           }
 
-          fetch(`${API}/places`).then(r => r.json()).then(d => { setStoredPlaces(d.places || []); setPlacesTotal(d.total || 0); }).catch(() => {});
+          fetch(`${API}/places`).then(r => r.json()).then(d => { setStoredPlaces(d.places || []); setPlacesTotal(d.total || 0); }).catch(e => console.error('Refresh places failed:', e));
           fetchSessions();
         }
       }
@@ -337,7 +341,7 @@ export default function Home() {
     fetch(`${API}/itinerary/${id}`).then(r => r.json()).then(d => {
       const pts = d.items.map((i: any) => ({ name: i.place_name, lat: i.lat, lng: i.lng, category: i.category, day: i.day_number || 1 }));
       setCurrentPlaces(pts);
-    }).catch(() => {});
+    }).catch(e => console.error('Switch itinerary fetch failed:', e));
   }
 
   async function confirmItinerary(id: number) {
@@ -406,6 +410,7 @@ export default function Home() {
 
   return (
     <div className="app">
+      {toast && <div role="alert" style={{ position: 'fixed', top: 8, left: '50%', transform: 'translateX(-50%)', background: '#e74c3c', color: 'white', padding: '8px 16px', borderRadius: 8, fontSize: '.85rem', zIndex: 9999, boxShadow: '0 4px 12px rgba(0,0,0,.3)' }}>{toast}</div>}
       <div className="header">
         <div className="header-left">
           <h1>{sessionTitle || 'Inclusive Tourism'}</h1>
@@ -423,15 +428,15 @@ export default function Home() {
         {tab === 'chat' && (
           <>
             <div ref={sessRef} style={{ position: 'relative' }}>
-              <button aria-label="Sessions" onClick={() => setShowSessions(x => !x)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowSessions(x => !x); } }} tabIndex={0} role="button"
+              <button aria-label="Sessions" aria-expanded={showSessions} aria-haspopup="listbox" onClick={() => setShowSessions(x => !x)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowSessions(x => !x); } }} tabIndex={0} role="button"
                 style={{ background: 'rgba(255,255,255,.2)', border: '1px solid rgba(255,255,255,.4)', color: 'white', padding: '4px 10px', borderRadius: 5, cursor: 'pointer', fontSize: '.78rem', whiteSpace: 'nowrap' }}>
                 Sessions ▾
               </button>
               {showSessions && (
-                <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, width: 240, maxHeight: 300, overflow: 'auto', background: 'white', border: '1px solid #e0e0e0', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,.15)', zIndex: 999 }}>
+                <div role="listbox" aria-label="Past sessions" style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, width: 240, maxWidth: 'calc(100vw - 20px)', maxHeight: 300, overflow: 'auto', background: 'white', border: '1px solid #e0e0e0', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,.15)', zIndex: 999 }}>
                   {sessions.length === 0 && <div style={{ padding: 12, color: '#888', fontSize: '.85rem' }}>No past sessions</div>}
                   {sessions.map(s => (
-                    <div key={s.id} onClick={() => loadSession(s.id)} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '.85rem', borderBottom: '1px solid #f0f0f0' }}
+                    <div key={s.id} role="option" aria-selected={false} tabIndex={-1} onClick={() => loadSession(s.id)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); loadSession(s.id); } }} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '.85rem', borderBottom: '1px solid #f0f0f0' }}
                       onMouseEnter={e => (e.currentTarget.style.background = '#f5f5f5')} onMouseLeave={e => (e.currentTarget.style.background = '')}>
                       <div style={{ fontWeight: 500, color: '#000', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.display_title || s.title}</div>
                       <div style={{ color: '#888', fontSize: '.75rem' }}>{Math.ceil(s.msg_count / 2)} conv · {new Date(s.updated_at).toLocaleDateString()}</div>
@@ -444,7 +449,7 @@ export default function Home() {
               New
             </button>
             <div ref={prefsRef} style={{ position: 'relative' }}>
-              <button aria-label="Preferences" onClick={() => setShowPrefs(x => !x)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowPrefs(x => !x); } }} tabIndex={0} role="button" style={{ background: 'rgba(255,255,255,.15)', border: '1px solid rgba(255,255,255,.3)', color: 'white', padding: '4px 8px', borderRadius: 5, cursor: 'pointer', fontSize: '.72rem', whiteSpace: 'nowrap' }}>
+              <button aria-label="Preferences" aria-expanded={showPrefs} aria-haspopup="dialog" onClick={() => setShowPrefs(x => !x)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowPrefs(x => !x); } }} tabIndex={0} role="button" style={{ background: 'rgba(255,255,255,.15)', border: '1px solid rgba(255,255,255,.3)', color: 'white', padding: '4px 8px', borderRadius: 5, cursor: 'pointer', fontSize: '.72rem', whiteSpace: 'nowrap' }}>
                 {Object.values(prefs).some(v => v) ? '★' : ''} Prefs
               </button>
               {showPrefs && (<div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, width: 340, background: 'white', border: '1px solid #e0e0e0', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,.15)', zIndex: 999, padding: 16, maxHeight: 420, overflow: 'auto' }}>
@@ -496,7 +501,7 @@ export default function Home() {
               </div>)}
             </div>
             <div ref={settingsRef} style={{ position: 'relative' }}>
-              <button aria-label="Settings" onClick={() => setShowSettings(x => !x)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowSettings(x => !x); } }} tabIndex={0} role="button"
+              <button aria-label="Settings" aria-expanded={showSettings} aria-haspopup="dialog" onClick={() => setShowSettings(x => !x)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowSettings(x => !x); } }} tabIndex={0} role="button"
                 style={{ background: 'rgba(255,255,255,.15)', border: '1px solid rgba(255,255,255,.3)', color: 'white', padding: '4px 8px', borderRadius: 5, cursor: 'pointer', fontSize: '.72rem', whiteSpace: 'nowrap' }}>
                 ⚙
               </button>
@@ -542,15 +547,15 @@ export default function Home() {
               )}
             </div>
             <div ref={modelRef} style={{ position: 'relative' }}>
-              <button aria-label="Select model" onClick={() => setShowModels(x => !x)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowModels(x => !x); } }} tabIndex={0} role="button" disabled={modelSwitching}
+              <button aria-label="Select model" aria-expanded={showModels} aria-haspopup="listbox" onClick={() => setShowModels(x => !x)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowModels(x => !x); } }} tabIndex={0} role="button" disabled={modelSwitching}
                 style={{ background: 'rgba(255,255,255,.15)', border: '1px solid rgba(255,255,255,.3)', color: 'white', padding: '4px 8px', borderRadius: 5, cursor: 'pointer', fontSize: '.72rem', whiteSpace: 'nowrap', opacity: modelSwitching ? .6 : 1 }}>
                 {modelSwitching ? '⟳' : '⚙'} {currentModel ? currentModel.replace(/\.gguf$/, '').slice(0, 20) : 'Model'}
               </button>
               {showModels && (
-                <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, width: 280, maxHeight: 300, overflow: 'auto', background: 'white', border: '1px solid #e0e0e0', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,.15)', zIndex: 999 }}>
+                <div role="listbox" aria-label="Available models" style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, width: 280, maxWidth: 'calc(100vw - 20px)', maxHeight: 300, overflow: 'auto', background: 'white', border: '1px solid #e0e0e0', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,.15)', zIndex: 999 }}>
                   {models.length === 0 && <div style={{ padding: 12, color: '#888', fontSize: '.85rem' }}>No models found</div>}
                   {models.map(m => (
-                    <div key={m} onClick={() => switchModel(m)} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '.8rem', background: m === currentModel ? '#f0f4ff' : '', borderBottom: '1px solid #f0f0f0' }}
+                    <div key={m} role="option" aria-selected={m === currentModel} tabIndex={-1} onClick={() => switchModel(m)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); switchModel(m); } }} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '.8rem', background: m === currentModel ? '#f0f4ff' : '', borderBottom: '1px solid #f0f0f0' }}
                       onMouseEnter={e => (e.currentTarget.style.background = '#f5f5f5')} onMouseLeave={e => (e.currentTarget.style.background = m === currentModel ? '#f0f4ff' : '')}>
                       <div style={{ fontWeight: 500, color: '#000' }}>{m.replace(/\.gguf$/, '')}</div>
                       <div style={{ color: '#888', fontSize: '.7rem' }}>{m.endsWith('.gguf') ? 'Local GGUF' : ''}</div>
@@ -568,14 +573,14 @@ export default function Home() {
 
         {tab === 'itinerary' && (
           <div ref={itinSwitcher} style={{ position: 'relative' }}>
-            <button onClick={() => setShowItinSwitch(x => !x)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowItinSwitch(x => !x); } }} tabIndex={0} role="button" style={{ background: 'rgba(255,255,255,.2)', border: '1px solid rgba(255,255,255,.4)', color: 'white', padding: '4px 10px', borderRadius: 5, cursor: 'pointer', fontSize: '.78rem', whiteSpace: 'nowrap' }}>
+            <button aria-label="Switch itinerary" aria-expanded={showItinSwitch} aria-haspopup="listbox" onClick={() => setShowItinSwitch(x => !x)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowItinSwitch(x => !x); } }} tabIndex={0} role="button" style={{ background: 'rgba(255,255,255,.2)', border: '1px solid rgba(255,255,255,.4)', color: 'white', padding: '4px 10px', borderRadius: 5, cursor: 'pointer', fontSize: '.78rem', whiteSpace: 'nowrap'}}>
               {currentItineraryId ? `Iten #${currentItineraryId} ▾` : 'Itineraries ▾'}
             </button>
             {showItinSwitch && (
-              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, width: 240, maxHeight: 300, overflow: 'auto', background: 'white', border: '1px solid #e0e0e0', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,.15)', zIndex: 999 }}>
+              <div role="listbox" aria-label="Saved itineraries" style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, width: 240, maxWidth: 'calc(100vw - 20px)', maxHeight: 300, overflow: 'auto', background: 'white', border: '1px solid #e0e0e0', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,.15)', zIndex: 999 }}>
                 {itineraries.length === 0 && <div style={{ padding: 12, color: '#888', fontSize: '.85rem' }}>No itineraries</div>}
                 {itineraries.map(i => (
-                  <div key={i.id} onClick={() => switchItinerary(i.id)} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '.85rem', background: i.id === currentItineraryId ? '#f0f4ff' : '', borderBottom: '1px solid #f0f0f0' }}
+                  <div key={i.id} role="option" aria-selected={i.id === currentItineraryId} tabIndex={-1} onClick={() => switchItinerary(i.id)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); switchItinerary(i.id); } }} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '.85rem', background: i.id === currentItineraryId ? '#f0f4ff' : '', borderBottom: '1px solid #f0f0f0' }}
                     onMouseEnter={e => (e.currentTarget.style.background = '#f5f5f5')} onMouseLeave={e => (e.currentTarget.style.background = i.id === currentItineraryId ? '#f0f4ff' : '')}>
                     <div style={{ fontWeight: 500 }}>Itinerary #{i.id}</div>
                     <div style={{ color: '#888', fontSize: '.75rem' }}>{i.user_text?.slice(0, 40) || 'No description'} · {i.stop_count} stops</div>
