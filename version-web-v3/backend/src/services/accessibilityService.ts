@@ -1,5 +1,6 @@
 import { query } from '../db/client';
 import { HK_BBOX } from '../constants';
+import { isMTRStationAccessible as _isMTRStationAccessible } from './tools/mtr';
 
 const OVERPASS_BASE = process.env.OVERPASS_BASE || 'https://overpass-api.de/api/interpreter';
 const overpassCache = new Map<string, { data: any; ts: number }>();
@@ -14,85 +15,13 @@ export interface AccessibilityInfo {
   tactilePaving: boolean;
   tags: string[];
   notes: string;
+  priceLevel?: string;
+  phone?: string;
+  website?: string;
+  openingHours?: string;
 }
 
-const ACCESSIBLE_MTR: Record<string, { name: string; elevator: boolean; accessibleToilet: boolean }> = {
-  // Existing Kowloon stations (keep all originals)
-  'TST': { name: 'Tsim Sha Tsui', elevator: true, accessibleToilet: true },
-  'ETS': { name: 'East Tsim Sha Tsui', elevator: true, accessibleToilet: true },
-  'JOR': { name: 'Jordan', elevator: true, accessibleToilet: true },
-  'YMT': { name: 'Yau Ma Tei', elevator: true, accessibleToilet: false },
-  'MOK': { name: 'Mong Kok', elevator: true, accessibleToilet: false },
-  'PRE': { name: 'Prince Edward', elevator: true, accessibleToilet: true },
-  'SSP': { name: 'Sham Shui Po', elevator: true, accessibleToilet: false },
-  'CSW': { name: 'Cheung Sha Wan', elevator: true, accessibleToilet: false },
-  'LCK': { name: 'Lai Chi Kok', elevator: true, accessibleToilet: true },
-  'MEF': { name: 'Mei Foo', elevator: true, accessibleToilet: true },
-  'HUH': { name: 'Hung Hom', elevator: true, accessibleToilet: true },
-  'KOW': { name: 'Kowloon Tong', elevator: true, accessibleToilet: true },
-  'DIH': { name: 'Diamond Hill', elevator: true, accessibleToilet: true },
-  'CHH': { name: 'Choi Hung', elevator: true, accessibleToilet: false },
-  'KOB': { name: 'Kowloon Bay', elevator: true, accessibleToilet: false },
-  'NTK': { name: 'Ngau Tau Kok', elevator: true, accessibleToilet: false },
-  'KWT': { name: 'Kwun Tong', elevator: true, accessibleToilet: true },
-  'LAT': { name: 'Lam Tin', elevator: true, accessibleToilet: true },
-  'WTS': { name: 'Wong Tai Sin', elevator: true, accessibleToilet: true },
-  'LOP': { name: 'Lok Fu', elevator: true, accessibleToilet: false },
-  'AUS': { name: 'Austin', elevator: true, accessibleToilet: true },
-  'WAC': { name: 'Whampoa', elevator: true, accessibleToilet: true },
-  // HK Island (Tsuen Wan + Island Line)
-  'HOK': { name: 'Hong Kong', elevator: true, accessibleToilet: true },
-  'CEN': { name: 'Central', elevator: true, accessibleToilet: true },
-  'ADM': { name: 'Admiralty', elevator: true, accessibleToilet: true },
-  'WCH': { name: 'Wan Chai', elevator: true, accessibleToilet: true },
-  'CAB': { name: 'Causeway Bay', elevator: true, accessibleToilet: true },
-  'TIH': { name: 'Tin Hau', elevator: true, accessibleToilet: false },
-  'FOH': { name: 'Fortress Hill', elevator: true, accessibleToilet: false },
-  'NOP': { name: 'North Point', elevator: true, accessibleToilet: true },
-  'QUB': { name: 'Quarry Bay', elevator: true, accessibleToilet: false },
-  'TAK': { name: 'Tai Koo', elevator: true, accessibleToilet: false },
-  'SWH': { name: 'Sai Wan Ho', elevator: true, accessibleToilet: false },
-  'SKW': { name: 'Shau Kei Wan', elevator: true, accessibleToilet: false },
-  'SHE': { name: 'Sheung Wan', elevator: true, accessibleToilet: true },
-  'SYP': { name: 'Sai Ying Pun', elevator: true, accessibleToilet: true },
-  'HKU': { name: 'HKU', elevator: true, accessibleToilet: true },
-  'KET': { name: 'Kennedy Town', elevator: true, accessibleToilet: false },
-  // New Territories (Tsuen Wan + East Rail + Tuen Ma)
-  'TSW': { name: 'Tsuen Wan', elevator: true, accessibleToilet: true },
-  'TWH': { name: 'Tai Wo Hau', elevator: true, accessibleToilet: false },
-  'KWF': { name: 'Kwai Fong', elevator: true, accessibleToilet: false },
-  'KWH': { name: 'Kwai Hing', elevator: true, accessibleToilet: true },
-  'SHA': { name: 'Sha Tin', elevator: true, accessibleToilet: true },
-  'TAP': { name: 'Tai Po Market', elevator: true, accessibleToilet: true },
-  'FOT': { name: 'Fo Tan', elevator: true, accessibleToilet: false },
-  'UNI': { name: 'University', elevator: true, accessibleToilet: true },
-  'FAN': { name: 'Fanling', elevator: true, accessibleToilet: true },
-  'SHS': { name: 'Sheung Shui', elevator: true, accessibleToilet: true },
-  'TKO': { name: 'Tseung Kwan O', elevator: true, accessibleToilet: true },
-  'HAE': { name: 'Hang Hau', elevator: true, accessibleToilet: false },
-  // South Island
-  'SOU': { name: 'South Horizons', elevator: true, accessibleToilet: true },
-  'LEI': { name: 'Lei Tung', elevator: true, accessibleToilet: false },
-  'OCP': { name: 'Ocean Park', elevator: true, accessibleToilet: true },
-  // Airport Express
-  'TSY': { name: 'Tsing Yi', elevator: true, accessibleToilet: true },
-  'SUN': { name: 'Sunny Bay', elevator: true, accessibleToilet: false },
-  'TUC': { name: 'Tung Chung', elevator: true, accessibleToilet: true },
-};
-
-export function getAccessibleMTRStations(): string[] {
-  return Object.values(ACCESSIBLE_MTR).map(s => s.name);
-}
-
-export function isMTRStationAccessible(stationName: string): boolean {
-  const lower = stationName.toLowerCase();
-  for (const v of Object.values(ACCESSIBLE_MTR)) {
-    if (v.name.toLowerCase().includes(lower) || lower.includes(v.name.toLowerCase())) {
-      return v.elevator;
-    }
-  }
-  return false;
-}
+export { _isMTRStationAccessible as isMTRStationAccessible };
 
 export async function getAccessibility(placeName: string): Promise<AccessibilityInfo> {
   const fromDb = await queryDbAccessibility(placeName);
@@ -116,7 +45,7 @@ export async function getAccessibility(placeName: string): Promise<Accessibility
 async function queryDbAccessibility(name: string): Promise<AccessibilityInfo | null> {
   try {
     const rows = await query(
-      'SELECT name, accessibility_tags, accessibility_score FROM places WHERE LOWER(name) LIKE $1 LIMIT 1',
+      'SELECT name, accessibility_tags, accessibility_score, price_level, phone, website, opening_hours FROM places WHERE LOWER(name) LIKE $1 LIMIT 1',
       [`%${name.toLowerCase()}%`],
     );
     if (rows.rows.length === 0) return null;
@@ -131,6 +60,11 @@ async function queryDbAccessibility(name: string): Promise<AccessibilityInfo | n
     const elevator = tags.some(t => t.includes('elevator') || t.includes('lift') || t.includes('elev'));
     const tactile = tags.some(t => t.includes('tactile') || t.includes('braille'));
 
+    const priceLabel = r.price_level ? ` Price: ${r.price_level}.` : '';
+    const contactInfo = r.phone ? ` Phone: ${r.phone}.` : '';
+    const websiteInfo = r.website ? ` Website: ${r.website}.` : '';
+    const hoursInfo = r.opening_hours ? ` Hours: ${r.opening_hours}.` : '';
+
     return {
       placeName: r.name,
       wheelchair: tags.length > 0 ? wc : 'unknown',
@@ -140,8 +74,12 @@ async function queryDbAccessibility(name: string): Promise<AccessibilityInfo | n
       tactilePaving: tactile,
       tags,
       notes: tags.length > 0
-        ? `From database: ${tags.join(', ')}.${elevator ? ' Has elevator.' : ''}${stepFree ? ' Step-free entrance.' : ''}${toilet ? ' Accessible toilet available.' : ''}`
+        ? `From database: ${tags.join(', ')}.${elevator ? ' Has elevator.' : ''}${stepFree ? ' Step-free entrance.' : ''}${toilet ? ' Accessible toilet available.' : ''}${priceLabel}${contactInfo}${websiteInfo}${hoursInfo}`
         : 'No curated data available.',
+      priceLevel: r.price_level,
+      phone: r.phone,
+      website: r.website,
+      openingHours: r.opening_hours,
     };
   } catch { return null; }
 }

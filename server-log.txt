@@ -1,0 +1,21 @@
+npm warn exec The following package was not found and will be installed: tsx@4.23.0
+node:internal/modules/esm/resolve:274
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\src\index.ts' imported from C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\
+    at finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    at moduleResolve (node:internal/modules/esm/resolve:864:10)
+    at defaultResolve (node:internal/modules/esm/resolve:990:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:773:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveBaseSync (file:///C:/Users/totot/AppData/Local/npm-cache/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:9115)
+    at resolveDirectorySync (file:///C:/Users/totot/AppData/Local/npm-cache/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:10328)
+    at resolveTsPathsSync (file:///C:/Users/totot/AppData/Local/npm-cache/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:11560)
+    at resolve (file:///C:/Users/totot/AppData/Local/npm-cache/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:13343) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///C:/Users/totot/.gemini/antigravity/antigravity_projects/inclusive-tourism-decision-platform/src/index.ts'
+}
+
+Node.js v24.11.1

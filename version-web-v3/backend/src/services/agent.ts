@@ -42,6 +42,7 @@ Tools (use native function calling):
 - get_travel_time: travel time by walking or transit
 - get_place_alternatives: find similar places if inaccessible
 - optimize_route: reorder stops to minimize walking
+- get_bus_eta: real-time HK bus arrival for Citybus/KMB routes. Provide route + stop name to check ETA.
 - set_preferences: save mobility status, interests, budget, home base. Call this FIRST when user shares personal info.
 
 RULES:

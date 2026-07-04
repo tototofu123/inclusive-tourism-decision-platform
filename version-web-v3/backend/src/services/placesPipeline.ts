@@ -1,4 +1,5 @@
 import { query } from '../db/client';
+import { HK_PIPELINE_CENTER, HK_REGION } from '../constants';
 
 const MAPS_API_KEY = process.env.MAPS_API_KEY || '';
 const PLACES_BASE = 'https://places.googleapis.com/v1/places:searchText';
@@ -35,7 +36,7 @@ const SEARCH_QUERIES = [
 ];
 
 const HK_LOCATION_RESTRICTION = {
-  circle: { center: { latitude: 22.3193, longitude: 114.1694 }, radius: 25000 },
+  circle: { center: { latitude: HK_PIPELINE_CENTER.lat, longitude: HK_PIPELINE_CENTER.lng }, radius: 25000 },
 };
 
 export async function runPlacesPipeline(maxQueries = 20): Promise<{ added: number; skipped: number }> {
@@ -61,13 +62,24 @@ export async function runPlacesPipeline(maxQueries = 20): Promise<{ added: numbe
       if (place.accessibilityOptions?.wheelchairAccessibleSeating) tags.push('accessible seating');
 
       const category = inferCategory(place.types || []);
-      const lat = place.location?.lat || 22.3193;
-      const lng = place.location?.lng || 114.1694;
+      const lat = place.location?.lat || HK_PIPELINE_CENTER.lat;
+      const lng = place.location?.lng || HK_PIPELINE_CENTER.lng;
       const score = tags.length >= 2 ? 5 : tags.length === 1 ? 3 : 1;
 
+      const priceMap: Record<string, string> = {
+        PRICE_LEVEL_FREE: 'free', PRICE_LEVEL_INEXPENSIVE: 'cheap',
+        PRICE_LEVEL_MODERATE: 'medium', PRICE_LEVEL_EXPENSIVE: 'expensive', PRICE_LEVEL_VERY_EXPENSIVE: 'very_expensive',
+      };
+      const priceLevel = place.priceLevel ? priceMap[place.priceLevel] || place.priceLevel.toLowerCase() : null;
+      const phone = place.nationalPhoneNumber || null;
+      const website = place.websiteUri || null;
+      const openingHours = place.regularOpeningHours?.weekdayDescriptions
+        ? place.regularOpeningHours.weekdayDescriptions.join('; ')
+        : null;
+
       await query(
-        `INSERT INTO places (name, category, lat, lng, description, accessibility_tags, accessibility_score, region)
-         SELECT $1, $2, $3, $4, $5, $6, $7, $8
+        `INSERT INTO places (name, category, lat, lng, description, accessibility_tags, accessibility_score, region, price_level, phone, website, opening_hours)
+         SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
          WHERE NOT EXISTS (SELECT 1 FROM places WHERE LOWER(name) = LOWER($1) AND ABS(lat - $3) < 0.01 AND ABS(lng - $4) < 0.01)`,
         [
           place.name,
@@ -78,6 +90,10 @@ export async function runPlacesPipeline(maxQueries = 20): Promise<{ added: numbe
           tags,
           score,
           inferRegion(lat, lng),
+          priceLevel,
+          phone,
+          website,
+          openingHours,
         ],
       );
       added++;
@@ -128,7 +144,8 @@ function inferCategory(types: string[]): string {
 }
 
 function inferRegion(lat: number, lng: number): string {
-  if (lat > 22.28 && lat < 22.34 && lng > 114.14 && lng < 114.22) return 'kowloon';
-  if (lat > 22.24 && lat < 22.30 && lng > 114.12 && lng < 114.22) return 'hong_kong_island';
+  const r = HK_REGION;
+  if (lat > r.kowloon.minLat && lat < r.kowloon.maxLat && lng > r.kowloon.minLng && lng < r.kowloon.maxLng) return 'kowloon';
+  if (lat > r.hong_kong_island.minLat && lat < r.hong_kong_island.maxLat && lng > r.hong_kong_island.minLng && lng < r.hong_kong_island.maxLng) return 'hong_kong_island';
   return 'new_territories';
 }

@@ -18,6 +18,12 @@ export interface Place {
   category?: string;
   description?: string;
   source_api?: string;
+  price_level?: string;
+  phone?: string;
+  website?: string;
+  opening_hours?: string;
+  accessibility_score?: number;
+  accessibility_tags?: string[];
 }
 
 export interface ItineraryRow {

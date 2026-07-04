@@ -1,16 +1,19 @@
 const INJECTION_PATTERNS: RegExp[] = [
-  /ign(ore|oring)\s+(all\s+)?(previous\s+)?(your\s+)?instructions/i,
-  /forget\s+(all\s+)?(previous\s+)?(your\s+)?(instructions|directives|rules)/i,
+  /ign(ore|oring)[\s-]+(all\s+)?(previous\s+|last\s+)?(your\s+)?((previous|last)\s+)?(your\s+)?(instructions|prompt|rules|directives)/i,
+  /forget\s+(all\s+)?(previous\s+|last\s+)?(your\s+|our\s+)?((previous|last)\s+)?(your\s+|our\s+)?(instructions|directives|rules|prompt|everything|chat)/i,
   /overrid(e|ing)\s+(system\s+)?prompt/i,
   /reveal\s+your\s+(system\s+)?prompt/i,
   /what\s+(are\s+)?your\s+(system\s+)?(instructions|prompt|rules|directives)/i,
-  /(tell|show|give|print|display|output|write|send)\s+me\s+your\s+(system\s+)?prompt/i,
-  /act\s+as\s+(a\s+)?(different|new|another)\s+(persona|character|role|ai|assistant|system|bot)/i,
-  /do\s+anything\s+now/i,
-  /you\s+(are|must|will|should|need\s+to)\s+(ignore|disregard|bypass)/i,
-  /(ignore|disregard|bypass|override)\s+(all\s+)?(prior|previous|above|system)/i,
+  /(tell|show|give|print|display|output|write|send)\s+(me\s+)?your\s+(system\s+)?prompt/i,
+  /(act\s+as|pretend\s+to\s+be|switch\s+to)\s+(a\s+)?(different|new|another)\s+(persona|character|role|ai|assistant|system|bot)/i,
+  /do\s+anything\s+(now|i\s+want)/i,
+  /you\s+(are|must|will|should|need\s+to)\s+(ignore|disregard|bypass)(\s+(the\s+)?(your\s+)?(system\s+)?(prior|previous|above)\s+(instructions|prompt|rules|directives))?/i,
+  /you\s+(are|must|will|should|need\s+to)\s+not\s+(reveal|follow|obey|listen\s+to|guide|(be\s+)?bound\s+by)\s+(the\s+)?(your\s+)?(system\s+)?(previous\s+)?(instructions|prompt|rules|directives|user)/i,
+  /(ignore|disregard|bypass|override)\s+(all\s+)?(prior|previous|above|system|everything)/i,
   /your\s+(system\s+)?(prompt|instructions|rules)\s+(is|are|was)/i,
-  /(new\s+)?(instruction|directive|order|rule)[\s:]+/i,
+  /(new\s+)?(instruction|directive)[\s:]+\w+/i,
+  /new\s+(\border\b|rule)[\s:]+\w+/i,
+  /do(?:n'?t| not)\s+(ignore|reveal|follow|obey|listen\s+to)\s+your\s+(system\s+)?(instructions|prompt|rules|directives)/i,
 ];
 
 const OFF_TOPIC_PATTERNS: RegExp[] = [
@@ -20,7 +23,8 @@ const OFF_TOPIC_PATTERNS: RegExp[] = [
   /your\s+(api\s+)?key/i,
   /your\s+(configuration|config|settings)/i,
   /what\s+model\s+are\s+you/i,
-  /are\s+you\s+(chat)?gpt/i,
+  /are\s+you\s+(chat\s*)?gpt/i,
+  /chat\s*gpt/i,
 ];
 
 export function sanitizeInput(text: string): string {

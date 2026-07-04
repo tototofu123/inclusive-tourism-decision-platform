@@ -1,6 +1,6 @@
 const OSRM_BASE = process.env.OSRM_BASE || 'https://router.project-osrm.org';
 const MAPS_API_KEY = process.env.MAPS_API_KEY || '';
-import { haversineMeters } from './tools';
+import { haversineMeters } from './tools/utils';
 
 export async function getRoute(fromLat: number, fromLng: number, toLat: number, toLng: number) {
   if (MAPS_API_KEY) {

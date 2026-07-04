@@ -2,6 +2,7 @@ import { query } from '../db/client';
 import { LLMStop } from '../types';
 import { savePlace } from '../db/client';
 import { queryAllAccessibility } from './accessibilityService';
+import { KOWLOON_CENTER, KOWLOON_BBOX } from '../constants';
 
 const OVERPASS_BASE = process.env.OVERPASS_BASE || 'https://overpass-api.de/api/interpreter';
 const NOMINATIM_BASE = process.env.NOMINATIM_BASE || 'https://nominatim.openstreetmap.org';
@@ -121,8 +122,8 @@ export async function resolveStops(
       });
       results.push({ placeId, label: place.name, lat: place.lat, lng: place.lng, duration: stop.approx_duration_minutes });
     } else {
-      const clat = 22.305 + Math.random() * 0.03;
-      const clng = 114.165 + Math.random() * 0.03;
+      const clat = KOWLOON_CENTER.lat - 0.014 + Math.random() * 0.03;
+      const clng = KOWLOON_CENTER.lng - 0.005 + Math.random() * 0.03;
       const placeId = await savePlace({
         name: `${stop.label} (Kowloon)`, lat: clat, lng: clng,
         category: stop.category, description: (stop.notes || `${stop.label} in Kowloon`) + (wheelTag || ' (seed)'),
@@ -140,7 +141,7 @@ async function queryPlacesApi(query: string): Promise<{ name: string; lat: numbe
     const url = `https://places.googleapis.com/v1/places:searchText`;
     const body = {
       textQuery: `${query} Hong Kong`,
-      locationBias: { circle: { center: { latitude: 22.319, longitude: 114.170 }, radius: 5000 } },
+      locationBias: { circle: { center: { latitude: KOWLOON_CENTER.lat, longitude: KOWLOON_CENTER.lng }, radius: 5000 } },
       pageSize: 3,
     };
     const res = await fetch(url, {
@@ -153,8 +154,8 @@ async function queryPlacesApi(query: string): Promise<{ name: string; lat: numbe
     const place = data.places?.[0];
     return place ? {
       name: place.displayName?.text || query,
-      lat: place.location?.latitude || 22.319,
-      lng: place.location?.longitude || 114.170,
+      lat: place.location?.latitude || KOWLOON_CENTER.lat,
+      lng: place.location?.longitude || KOWLOON_CENTER.lng,
     } : null;
   } catch { return null; }
 }
@@ -163,7 +164,7 @@ async function queryOverpass(category: string, label: string): Promise<{ name: s
   const query = CATEGORY_OVERPASS[category];
   if (!query) return null;
   try {
-    const q = `[out:json][timeout:10];(${query}(22.29,114.15,22.34,114.20););out body 5;`;
+    const q = `[out:json][timeout:10];(${query}(${KOWLOON_BBOX}););out body 5;`;
     const res = await fetch(OVERPASS_BASE, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json', 'User-Agent': 'InclusiveTourismMVP/1.0' },
@@ -178,7 +179,9 @@ async function queryOverpass(category: string, label: string): Promise<{ name: s
 
 async function queryNominatim(q: string, category: string): Promise<{ name: string; lat: number; lng: number } | null> {
   try {
-    const url = `${NOMINATIM_BASE}/search?q=${encodeURIComponent(q + ' Kowloon Hong Kong')}&format=json&limit=1&bounded=1&viewbox=114.15,22.34,114.20,22.29`;
+    const parts = KOWLOON_BBOX.split(',').map(Number);
+    const [south, west, north, east] = [parts[0], parts[1], parts[2], parts[3]];
+    const url = `${NOMINATIM_BASE}/search?q=${encodeURIComponent(q + ' Kowloon Hong Kong')}&format=json&limit=1&bounded=1&viewbox=${west},${north},${east},${south}`;
     const res = await fetch(url, { headers: { 'User-Agent': 'InclusiveTourismMVP/1.0' } });
     if (!res.ok) return null;
     const data = await res.json() as any[];

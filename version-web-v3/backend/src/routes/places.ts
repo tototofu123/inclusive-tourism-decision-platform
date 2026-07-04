@@ -6,7 +6,7 @@ const PIPELINE_TOKEN = process.env.PIPELINE_TOKEN || '';
 
 router.get('/places', async (req: Request, res: Response) => {
   try {
-    const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+    const limit = Math.max(1, Math.min(parseInt(req.query.limit as string) || 50, 200));
     const offset = parseInt(req.query.offset as string) || 0;
     const data = await listPlaces(limit, offset);
     res.json(data);

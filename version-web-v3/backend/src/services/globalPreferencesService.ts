@@ -18,12 +18,15 @@ const DEFAULTS: GlobalPreferences = {
   confirmed_itinerary_id: null,
 };
 
+let cache: GlobalPreferences | null = null;
+
 export async function getGlobalPreferences(): Promise<GlobalPreferences> {
+  if (cache) return { ...cache };
   try {
     const r = await query('SELECT mobility, interests, budget_level, home_base, urgent_mode, confirmed_itinerary_id FROM global_preferences WHERE id=1');
-    if (r.rows.length === 0) return { ...DEFAULTS };
+    if (r.rows.length === 0) { cache = { ...DEFAULTS }; return { ...cache }; }
     const row = r.rows[0];
-    return {
+    cache = {
       mobility: row.mobility || 'none',
       interests: row.interests || [],
       budget_level: row.budget_level || 'medium',
@@ -31,14 +34,17 @@ export async function getGlobalPreferences(): Promise<GlobalPreferences> {
       urgent_mode: row.urgent_mode || false,
       confirmed_itinerary_id: row.confirmed_itinerary_id || null,
     };
+    return { ...cache };
   } catch {
-    return { ...DEFAULTS };
+    if (!cache) cache = { ...DEFAULTS };
+    return { ...cache };
   }
 }
 
 export async function setGlobalPreferences(prefs: Partial<GlobalPreferences>): Promise<GlobalPreferences> {
   const current = await getGlobalPreferences();
   const merged = { ...current, ...prefs };
+  cache = { ...merged };
   try {
     await query(
       `INSERT INTO global_preferences (id, mobility, interests, budget_level, home_base, urgent_mode, confirmed_itinerary_id, updated_at)
@@ -51,9 +57,9 @@ export async function setGlobalPreferences(prefs: Partial<GlobalPreferences>): P
        merged.urgent_mode, merged.confirmed_itinerary_id]
     );
   } catch (err) {
-    console.error('setGlobalPreferences error:', err);
+    console.error('setGlobalPreferences DB error (cache still active):', err);
   }
-  return merged;
+  return { ...merged };
 }
 
 export function formatGlobalPreferences(prefs: GlobalPreferences): string {

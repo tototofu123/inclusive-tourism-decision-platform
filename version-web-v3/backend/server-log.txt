@@ -1,0 +1,320 @@
+??injected env (14) from .env // tip: ??secrets for agents [www.dotenvx.com]
+Inclusive Tourism Platform V3 ??http://localhost:4000
+  LLM: Gemini (AI Studio) ??local llama.cpp fallback
+DB {
+  text: 'CREATE TABLE IF NOT EXISTS usage_events (\n' +
+    '    id SERIAL PRIMARY KEY, event TEXT ',
+  duration: 28,
+  rows: null
+}
+DB {
+  text: 'SELECT *, COUNT(*) OVER() as total_count FROM places ORDER BY name LIMIT $1 OFFS',
+  duration: 35,
+  rows: 1
+}
+setGlobalPreferences DB error (cache still active): error: column "urgent_mode" of relation "global_preferences" does not exist
+    at C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async query (C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\src\db\client.ts:27:15)
+    at async setGlobalPreferences (C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\src\services\globalPreferencesService.ts:49:5)
+    at async <anonymous> (C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\src\routes\preferences.ts:18:19) {
+  length: 142,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '83',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_target.c',
+  line: '1073',
+  routine: 'checkInsertTargets'
+}
+setGlobalPreferences DB error (cache still active): error: column "urgent_mode" of relation "global_preferences" does not exist
+    at C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async query (C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\src\db\client.ts:27:15)
+    at async setGlobalPreferences (C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\src\services\globalPreferencesService.ts:49:5)
+    at async <anonymous> (C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\src\routes\preferences.ts:18:19) {
+  length: 142,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '83',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_target.c',
+  line: '1073',
+  routine: 'checkInsertTargets'
+}
+setGlobalPreferences DB error (cache still active): error: column "urgent_mode" of relation "global_preferences" does not exist
+    at C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async query (C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\src\db\client.ts:27:15)
+    at async setGlobalPreferences (C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\src\services\globalPreferencesService.ts:49:5)
+    at async <anonymous> (C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\src\routes\preferences.ts:18:19) {
+  length: 142,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '83',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_target.c',
+  line: '1073',
+  routine: 'checkInsertTargets'
+}
+POST /chat: returning processId immediately
+POST /chat: response sent, starting background...
+Gemini API failed, trying Vertex AI: {"error":{"code":429,"message":"You exceeded your current quota, please check yo
+The user provided project/location will take precedence over the API key from the environment variables.
+Vertex AI failed, falling back to local: Could not load the default credentials. Browse to https://cloud.google.com/docs/
+(node:17716) MetadataLookupWarning: received unexpected error = All promises were rejected code = UNKNOWN
+(Use `node --trace-warnings ...` to show where the warning was created)
+LLM error: fetch failed
+POST /chat: returning processId immediately
+POST /chat: response sent, starting background...
+Gemini API failed, trying Vertex AI: {"error":{"code":429,"message":"You exceeded your current quota, please check yo
+The user provided project/location will take precedence over the API key from the environment variables.
+Vertex AI failed, falling back to local: Could not load the default credentials. Browse to https://cloud.google.com/docs/
+(node:17716) MetadataLookupWarning: received unexpected error = All promises were rejected code = UNKNOWN
+LLM error: fetch failed
+POST /chat: returning processId immediately
+POST /chat: response sent, starting background...
+POST /chat: returning processId immediately
+POST /chat: response sent, starting background...
+Gemini API failed, trying Vertex AI: {"error":{"code":429,"message":"You exceeded your current quota, please check yo
+The user provided project/location will take precedence over the API key from the environment variables.
+Vertex AI failed, falling back to local: Could not load the default credentials. Browse to https://cloud.google.com/docs/
+(node:17716) MetadataLookupWarning: received unexpected error = All promises were rejected code = UNKNOWN
+LLM error: fetch failed
+Gemini API failed, trying Vertex AI: {"error":{"code":429,"message":"You exceeded your current quota, please check yo
+The user provided project/location will take precedence over the API key from the environment variables.
+Vertex AI failed, falling back to local: Could not load the default credentials. Browse to https://cloud.google.com/docs/
+(node:17716) MetadataLookupWarning: received unexpected error = All promises were rejected code = UNKNOWN
+LLM error: fetch failed
+DB {
+  text: 'SELECT *, COUNT(*) OVER() as total_count FROM places ORDER BY name LIMIT $1 OFFS',
+  duration: 25,
+  rows: 1
+}
+setGlobalPreferences DB error (cache still active): error: column "urgent_mode" of relation "global_preferences" does not exist
+    at C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async query (C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\src\db\client.ts:27:15)
+    at async setGlobalPreferences (C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\src\services\globalPreferencesService.ts:49:5)
+    at async <anonymous> (C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\src\routes\preferences.ts:18:19) {
+  length: 142,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '83',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_target.c',
+  line: '1073',
+  routine: 'checkInsertTargets'
+}
+setGlobalPreferences DB error (cache still active): error: column "urgent_mode" of relation "global_preferences" does not exist
+    at C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async query (C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\src\db\client.ts:27:15)
+    at async setGlobalPreferences (C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\src\services\globalPreferencesService.ts:49:5)
+    at async <anonymous> (C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\src\routes\preferences.ts:18:19) {
+  length: 142,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '83',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_target.c',
+  line: '1073',
+  routine: 'checkInsertTargets'
+}
+setGlobalPreferences DB error (cache still active): error: column "urgent_mode" of relation "global_preferences" does not exist
+    at C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async query (C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\src\db\client.ts:27:15)
+    at async setGlobalPreferences (C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\src\services\globalPreferencesService.ts:49:5)
+    at async <anonymous> (C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\src\routes\preferences.ts:18:19) {
+  length: 142,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '83',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_target.c',
+  line: '1073',
+  routine: 'checkInsertTargets'
+}
+POST /chat: returning processId immediately
+POST /chat: response sent, starting background...
+Gemini API failed, trying Vertex AI: {"error":{"code":429,"message":"You exceeded your current quota, please check yo
+Vertex AI failed, falling back to local: Could not load the default credentials. Browse to https://cloud.google.com/docs/
+The user provided project/location will take precedence over the API key from the environment variables.
+(node:17716) MetadataLookupWarning: received unexpected error = All promises were rejected code = UNKNOWN
+LLM error: fetch failed
+POST /chat: returning processId immediately
+POST /chat: response sent, starting background...
+Gemini API failed, trying Vertex AI: {"error":{"code":429,"message":"You exceeded your current quota, please check yo
+The user provided project/location will take precedence over the API key from the environment variables.
+Vertex AI failed, falling back to local: Could not load the default credentials. Browse to https://cloud.google.com/docs/
+(node:17716) MetadataLookupWarning: received unexpected error = All promises were rejected code = UNKNOWN
+LLM error: fetch failed
+POST /chat: returning processId immediately
+POST /chat: response sent, starting background...
+POST /chat: returning processId immediately
+POST /chat: response sent, starting background...
+Gemini API failed, trying Vertex AI: {"error":{"code":429,"message":"You exceeded your current quota, please check yo
+The user provided project/location will take precedence over the API key from the environment variables.
+Vertex AI failed, falling back to local: Could not load the default credentials. Browse to https://cloud.google.com/docs/
+(node:17716) MetadataLookupWarning: received unexpected error = All promises were rejected code = UNKNOWN
+LLM error: fetch failed
+Gemini API failed, trying Vertex AI: {"error":{"code":429,"message":"You exceeded your current quota, please check yo
+The user provided project/location will take precedence over the API key from the environment variables.
+Vertex AI failed, falling back to local: Could not load the default credentials. Browse to https://cloud.google.com/docs/
+(node:17716) MetadataLookupWarning: received unexpected error = All promises were rejected code = UNKNOWN
+LLM error: fetch failed
+setGlobalPreferences DB error (cache still active): error: column "urgent_mode" of relation "global_preferences" does not exist
+    at C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async query (C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\src\db\client.ts:27:15)
+    at async setGlobalPreferences (C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\src\services\globalPreferencesService.ts:49:5)
+    at async <anonymous> (C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\src\routes\preferences.ts:18:19) {
+  length: 142,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '83',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_target.c',
+  line: '1073',
+  routine: 'checkInsertTargets'
+}
+setGlobalPreferences DB error (cache still active): error: column "urgent_mode" of relation "global_preferences" does not exist
+    at C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async query (C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\src\db\client.ts:27:15)
+    at async setGlobalPreferences (C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\src\services\globalPreferencesService.ts:49:5)
+    at async <anonymous> (C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\src\routes\preferences.ts:18:19) {
+  length: 142,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '83',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_target.c',
+  line: '1073',
+  routine: 'checkInsertTargets'
+}
+setGlobalPreferences DB error (cache still active): error: column "urgent_mode" of relation "global_preferences" does not exist
+    at C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async query (C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\src\db\client.ts:27:15)
+    at async setGlobalPreferences (C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\src\services\globalPreferencesService.ts:49:5)
+    at async <anonymous> (C:\Users\totot\.gemini\antigravity\antigravity_projects\inclusive-tourism-decision-platform\version-web-v3\backend\src\routes\preferences.ts:18:19) {
+  length: 142,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '83',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_target.c',
+  line: '1073',
+  routine: 'checkInsertTargets'
+}
+POST /chat: returning processId immediately
+POST /chat: response sent, starting background...
+Gemini API failed, trying Vertex AI: {"error":{"code":429,"message":"You exceeded your current quota, please check yo
+The user provided project/location will take precedence over the API key from the environment variables.
+Vertex AI failed, falling back to local: Could not load the default credentials. Browse to https://cloud.google.com/docs/
+(node:17716) MetadataLookupWarning: received unexpected error = All promises were rejected code = UNKNOWN
+LLM error: fetch failed
+POST /chat: returning processId immediately
+POST /chat: response sent, starting background...
+Gemini API failed, trying Vertex AI: {"error":{"code":429,"message":"You exceeded your current quota, please check yo
+The user provided project/location will take precedence over the API key from the environment variables.
+Vertex AI failed, falling back to local: Could not load the default credentials. Browse to https://cloud.google.com/docs/
+(node:17716) MetadataLookupWarning: received unexpected error = All promises were rejected code = UNKNOWN
+LLM error: fetch failed
+POST /chat: returning processId immediately
+POST /chat: response sent, starting background...
+POST /chat: returning processId immediately
+POST /chat: response sent, starting background...
+Gemini API failed, trying Vertex AI: {"error":{"code":429,"message":"You exceeded your current quota, please check yo
+The user provided project/location will take precedence over the API key from the environment variables.
+Vertex AI failed, falling back to local: Could not load the default credentials. Browse to https://cloud.google.com/docs/
+(node:17716) MetadataLookupWarning: received unexpected error = All promises were rejected code = UNKNOWN
+LLM error: fetch failed
+Gemini API failed, trying Vertex AI: {"error":{"code":429,"message":"You exceeded your current quota, please check yo
+The user provided project/location will take precedence over the API key from the environment variables.
+Vertex AI failed, falling back to local: Could not load the default credentials. Browse to https://cloud.google.com/docs/
+(node:17716) MetadataLookupWarning: received unexpected error = All promises were rejected code = UNKNOWN
+LLM error: fetch failed
