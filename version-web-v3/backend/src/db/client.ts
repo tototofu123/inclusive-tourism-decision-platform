@@ -18,11 +18,36 @@ const pool = new Pool(dbConfig);
 
 pool.on('error', err => console.error('Unexpected DB pool error:', err));
 
+// Simple in-memory query cache (1-min TTL)
+const queryCache = new Map<string, { data: any; ts: number }>();
+const CACHE_TTL = 60_000;
+
 export async function query(text: string, params?: any[]) {
   const start = Date.now();
   const res = await pool.query(text, params);
   console.log('DB', { text: text.slice(0, 80), duration: Date.now() - start, rows: res.rowCount });
   return res;
+}
+
+function cachedQuery(cacheKey: string, fetcher: () => Promise<any>, ttl = CACHE_TTL): Promise<any> {
+  const cached = queryCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < ttl) return Promise.resolve(cached.data);
+  return fetcher().then(data => {
+    queryCache.set(cacheKey, { data, ts: Date.now() });
+    // Evict oldest if over 50 entries
+    if (queryCache.size > 50) {
+      const oldest = [...queryCache.entries()].sort((a, b) => a[1].ts - b[1].ts)[0];
+      if (oldest) queryCache.delete(oldest[0]);
+    }
+    return data;
+  });
+}
+
+export function invalidateCache(pattern?: string) {
+  if (!pattern) { queryCache.clear(); return; }
+  for (const key of queryCache.keys()) {
+    if (key.includes(pattern)) queryCache.delete(key);
+  }
 }
 
 // Places
@@ -38,9 +63,12 @@ export async function savePlace(place: { name: string; lat: number; lng: number;
 }
 
 export async function listPlaces(limit = 50, offset = 0) {
-  const r = await query('SELECT * FROM places ORDER BY name LIMIT $1 OFFSET $2', [limit, offset]);
-  const c = await query('SELECT COUNT(*) as t FROM places');
-  return { places: r.rows, total: parseInt(c.rows[0].t) };
+  const cacheKey = `places_${limit}_${offset}`;
+  return cachedQuery(cacheKey, async () => {
+    const r = await query('SELECT * FROM places ORDER BY name LIMIT $1 OFFSET $2', [limit, offset]);
+    const c = await query('SELECT COUNT(*) as t FROM places');
+    return { places: r.rows, total: parseInt(c.rows[0].t) };
+  }, 30_000);
 }
 
 // Itineraries
@@ -96,19 +124,22 @@ export async function getFullItinerary(id: number) {
 // Sessions
 export async function createSession(title?: string): Promise<number> {
   const r = await query('INSERT INTO sessions (title) VALUES ($1) RETURNING id', [title || 'New Chat']);
+  invalidateCache('sessions');
   return r.rows[0].id;
 }
 
 export async function listSessions() {
-  const r = await query(`SELECT s.*,
-    (SELECT COUNT(*) FROM session_messages WHERE session_id=s.id) as msg_count,
-    (SELECT content FROM session_messages WHERE session_id=s.id AND role='user' ORDER BY created_at LIMIT 1) as first_msg
-    FROM sessions s ORDER BY s.updated_at DESC LIMIT 30`);
-  return r.rows.map((row: any) => ({
-    ...row,
-    display_title: row.title && row.title !== 'New Chat' ? row.title :
-      row.first_msg ? (row.first_msg.length > 35 ? row.first_msg.slice(0, 35) + '…' : row.first_msg) : 'New Chat',
-  }));
+  return cachedQuery('sessions_list', async () => {
+    const r = await query(`SELECT s.*,
+      (SELECT COUNT(*) FROM session_messages WHERE session_id=s.id) as msg_count,
+      (SELECT content FROM session_messages WHERE session_id=s.id AND role='user' ORDER BY created_at LIMIT 1) as first_msg
+      FROM sessions s ORDER BY s.updated_at DESC LIMIT 30`);
+    return r.rows.map((row: any) => ({
+      ...row,
+      display_title: row.title && row.title !== 'New Chat' ? row.title :
+        row.first_msg ? (row.first_msg.length > 35 ? row.first_msg.slice(0, 35) + '…' : row.first_msg) : 'New Chat',
+    }));
+  }, 15_000);
 }
 
 export async function getSession(id: number) {
@@ -134,5 +165,6 @@ export async function saveMessage(msg: {
      msg.itinerary_id || null]
   );
   await query('UPDATE sessions SET updated_at=NOW() WHERE id=$1', [msg.session_id]);
+  invalidateCache('sessions');
   return r.rows[0].id;
 }

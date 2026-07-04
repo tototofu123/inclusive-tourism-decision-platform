@@ -20,13 +20,27 @@ interface ProcessState {
 }
 const processes = new Map<string, ProcessState>();
 
+const MAX_PROCESSES = 100;
+
 // Clean up old processes after 5 minutes
 export const cleanupInterval = setInterval(() => {
   const cutoff = Date.now() - 300000;
+  let doneCount = 0;
   for (const [id, state] of processes) {
     if (state.done) {
       const ts = parseInt(id.split('-')[0]);
-      if (!isNaN(ts) && ts < cutoff) processes.delete(id);
+      if (!isNaN(ts) && ts < cutoff) { processes.delete(id); doneCount++; }
+    }
+  }
+  // Evict oldest if still over limit
+  if (processes.size > MAX_PROCESSES) {
+    const sorted = [...processes.entries()].sort((a, b) => {
+      const ta = parseInt(a[0].split('-')[0]) || 0;
+      const tb = parseInt(b[0].split('-')[0]) || 0;
+      return ta - tb;
+    });
+    for (let i = 0; i < sorted.length - MAX_PROCESSES; i++) {
+      processes.delete(sorted[i][0]);
     }
   }
 }, 60000);

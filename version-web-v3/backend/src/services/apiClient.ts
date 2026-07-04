@@ -201,12 +201,12 @@ export async function chatCompletion(
     }
   }
 
-  // Fallback / local llama.cpp
+  // Fallback / local llama.cpp (cap tokens: smaller models can't produce 4K useful output)
   const baseUrl = cfg.baseUrl || LOCAL_BASE;
   const body: any = {
     messages,
     temperature: cfg.temperature ?? 0.1,
-    max_tokens: cfg.maxTokens ?? 4096,
+    max_tokens: Math.min(cfg.maxTokens ?? 2048, 2048),
   };
 
   const localTools = tools?.length

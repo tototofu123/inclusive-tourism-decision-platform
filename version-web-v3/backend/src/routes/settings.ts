@@ -20,7 +20,9 @@ let settings: UserSettings = {
 const router = Router();
 
 router.get('/settings', (_req: Request, res: Response) => {
-  res.json(settings);
+  const safe = { ...settings };
+  if (safe.customApiKey) safe.customApiKey = '••••••••';
+  res.json(safe);
 });
 
 router.put('/settings', (req: Request, res: Response) => {
@@ -28,8 +30,10 @@ router.put('/settings', (req: Request, res: Response) => {
   if (body.provider) settings.provider = body.provider;
   if (body.model !== undefined) settings.model = body.model;
   if (body.customApiUrl !== undefined) settings.customApiUrl = body.customApiUrl;
-  if (body.customApiKey !== undefined) settings.customApiKey = body.customApiKey;
-  res.json(settings);
+  if (body.customApiKey !== undefined && body.customApiKey !== '••••••••') settings.customApiKey = body.customApiKey;
+  const safe = { ...settings };
+  if (safe.customApiKey) safe.customApiKey = '••••••••';
+  res.json(safe);
 });
 
 router.get('/models', (_req: Request, res: Response) => {

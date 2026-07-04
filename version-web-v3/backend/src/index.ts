@@ -16,17 +16,19 @@ import { query } from './db/client';
 import { rateLimit } from './utils/rateLimiter';
 
 const LLAMA_HOST = process.env.LLAMA_HOST || 'http://127.0.0.1:8081';
+const APP_ORIGIN = process.env.APP_ORIGIN || 'http://localhost:3000';
 const app = express();
 const PORT = parseInt(process.env.PORT || '4000');
 
-app.use(cors({ origin: true }));
-app.use(express.json());
+app.use(cors({ origin: [APP_ORIGIN, /^https?:\/\/localhost(:\d+)?$/], methods: ['GET', 'POST', 'PUT', 'DELETE'] }));
+app.use(express.json({ limit: '100kb' }));
 
 app.use('/chat', rateLimit(60_000, 20, 200));
 app.use('/places', rateLimit(10_000, 10, 100));
 app.use('/itineraries', rateLimit(30_000, 15, 100));
 app.use('/preferences', rateLimit(10_000, 10, 100));
 app.use('/sessions', rateLimit(10_000, 10, 100));
+app.use('/settings', rateLimit(10_000, 30, 150));
 
 app.use(itineraryRouter);
 app.use(chatRouter);
