@@ -1,6 +1,6 @@
 import dynamic from 'next/dynamic';
 
-const MapView = dynamic(() => import('./MapView'), { ssr: false });
+const GoogleMapView = dynamic(() => import('./GoogleMapView'), { ssr: false });
 
 export default function MapPanel({
   tab, categoryFilter, setCategoryFilter, dayFilter, setDayFilter,
@@ -25,10 +25,7 @@ export default function MapPanel({
     const catFiltered = categoryFilter
       ? storedPlaces.filter((p: any) => p.category === categoryFilter)
       : storedPlaces;
-    const sampled = catFiltered.length > 30
-      ? catFiltered.filter((_: any, i: number) => i % Math.ceil(catFiltered.length / 30) === 0)
-      : catFiltered;
-    const savedMarkers = sampled.map((p: any) => ({
+    const savedMarkers = catFiltered.map((p: any) => ({
       lat: p.lat, lng: p.lng, label: p.name,
       category: p.category, type: 'saved' as const,
     }));
@@ -41,7 +38,7 @@ export default function MapPanel({
       <div className="map-day-filters">
         <div className="map-filter-row">
           <span className="map-filter-label">Category:</span>
-          {['All', 'museum', 'cafe', 'park', 'temple', 'market', 'art_gallery', 'historic_site', 'viewpoint', 'shopping_mall', 'hotel'].map(cat => (
+          {['All', 'museum', 'cafe', 'park', 'temple', 'market', 'art_gallery', 'historic_site', 'viewpoint', 'shopping_mall', 'hotel', 'restroom', 'transit', 'bus_stop', 'entertainment'].map(cat => (
             <button key={cat}
               className={`map-day-btn ${categoryFilter === (cat === 'All' ? null : cat) ? 'active' : ''}`}
               onClick={() => setCategoryFilter(cat === 'All' ? null : cat)}>
@@ -66,7 +63,7 @@ export default function MapPanel({
             <p>Open an itinerary from the Itinerary tab or start a new chat to plan one.</p>
           </div>
         )}
-        <MapView markers={markers} routes={mapRoutes} />
+        <GoogleMapView markers={markers} routes={mapRoutes} />
       </div>
     </>
   );

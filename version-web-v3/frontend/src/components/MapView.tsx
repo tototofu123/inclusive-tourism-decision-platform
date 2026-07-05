@@ -6,10 +6,30 @@ const COLORS: Record<string, string> = {
   museum: '#e74c3c', cafe: '#e67e22', restaurant: '#e67e22', park: '#27ae60',
   temple: '#9b59b6', shopping_mall: '#3498db', viewpoint: '#f39c12',
   market: '#d35400', art_gallery: '#1abc9c', historic_site: '#8e44ad',
-  restroom: '#7f8c8d', hotel: '#2c3e50', attraction: '#16a085',
+  restroom: '#7f8c8d', toilet: '#7f8c8d', hotel: '#2c3e50', attraction: '#16a085',
+  transit: '#95a5a6', bus_stop: '#95a5a6', bus: '#95a5a6', mtr: '#95a5a6',
+  landmark: '#34495e', beach: '#27ae60', amusement_park: '#16a085',
+  library: '#1abc9c', community_center: '#1abc9c',
 };
 
 const KOWLOON_CENTER: [number, number] = [22.31, 114.17];
+
+const LEGEND_ITEMS = [
+  { label: 'Museum', color: '#e74c3c' },
+  { label: 'Cafe', color: '#e67e22' },
+  { label: 'Restaurant', color: '#e67e22' },
+  { label: 'Park/Beach', color: '#27ae60' },
+  { label: 'Temple', color: '#9b59b6' },
+  { label: 'Shopping', color: '#3498db' },
+  { label: 'Viewpoint', color: '#f39c12' },
+  { label: 'Market', color: '#d35400' },
+  { label: 'Art Gallery', color: '#1abc9c' },
+  { label: 'Historic Site', color: '#8e44ad' },
+  { label: 'Hotel', color: '#2c3e50' },
+  { label: 'Attraction', color: '#16a085' },
+  { label: 'Restroom/Toilet', color: '#7f8c8d' },
+  { label: 'Transit', color: '#95a5a6' },
+];
 
 export default function MapView({
   markers, routes, className, accessibilityScores, accessibilityTags,
@@ -36,6 +56,22 @@ export default function MapView({
     }).addTo(map);
     map.on('moveend', () => { userInteracted.current = true; });
     map.on('zoomend', () => { userInteracted.current = true; });
+
+    // Color legend
+    const LegendControl = L.Control.extend({
+      onAdd: function() {
+        const div = L.DomUtil.create('div', 'map-legend');
+        div.style.cssText = 'background:white;padding:8px 12px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.2);font-size:12px;line-height:1.6;max-height:300px;overflow-y:auto';
+        let html = '<div style="font-weight:700;margin-bottom:4px;font-size:13px">Legend</div>';
+        LEGEND_ITEMS.forEach(item => {
+          html += `<div style="display:flex;align-items:center;gap:6px"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${item.color};flex-shrink:0"></span>${item.label}</div>`;
+        });
+        div.innerHTML = html;
+        return div;
+      },
+    });
+    new LegendControl({ position: 'bottomright' }).addTo(map);
+
     mapRef.current = map;
     markerLayer.current = L.layerGroup().addTo(map);
     routeLayer.current = L.layerGroup().addTo(map);
