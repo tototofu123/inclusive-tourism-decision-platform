@@ -23,16 +23,26 @@ interface PlaceResult {
 }
 
 const SEARCH_QUERIES = [
-  'accessible toilet Hong Kong',
-  'wheelchair accessible restaurant Hong Kong',
-  'accessible park Hong Kong',
-  'resting spot Hong Kong',
-  // MTR station accessibility is handled by hardcoded data in tools.ts
-  'accessible museum Hong Kong',
-  'handicap parking Hong Kong',
-  'accessible cafe Hong Kong',
-  'accessible shopping mall Hong Kong',
-  'accessible tourist attraction Hong Kong',
+  'top rated museum Hong Kong',
+  'popular restaurant Hong Kong Kowloon',
+  'best cafe Hong Kong',
+  'shopping mall Hong Kong',
+  'tourist attraction Hong Kong',
+  'historic site Hong Kong',
+  'park Hong Kong garden',
+  'viewpoint Hong Kong skyline',
+  'Hong Kong temple',
+  'art gallery Hong Kong',
+  'market Hong Kong street market',
+  'Hong Kong hotel',
+  'dim sum restaurant Hong Kong',
+  'seafood restaurant Hong Kong',
+  'rooftop bar Hong Kong view',
+  'museum Hong Kong Island',
+  'nature park Hong Kong',
+  'Hong Kong cultural site',
+  'night market Hong Kong',
+  'family attraction Hong Kong',
 ];
 
 const HK_LOCATION_RESTRICTION = {
@@ -106,7 +116,6 @@ export async function runPlacesPipeline(maxQueries = 20): Promise<{ added: numbe
 async function searchGooglePlaces(query: string): Promise<PlaceResult[]> {
   const body = {
     textQuery: query,
-    locationRestriction: HK_LOCATION_RESTRICTION,
     pageSize: 10,
   };
 
