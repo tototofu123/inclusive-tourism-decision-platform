@@ -66,7 +66,7 @@ export default function Home() {
   const [modelSwitching, setModelSwitching] = useState(false);
   const modelRef = useRef<HTMLDivElement>(null);
   const [showPrefs, setShowPrefs] = useState(false);
-  const [prefs, setPrefs] = useState({ mobility: '', interests: '', budget_level: '', home_base: '' });
+  const [prefs, setPrefs] = useState({ mobility: '', interests: '', budget_level: '', budget_min_hkd: '', budget_max_hkd: '', home_base: '' });
   const prefsRef = useRef<HTMLDivElement>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState({
@@ -106,7 +106,14 @@ export default function Home() {
   function loadPrefs() {
     fetch(`${API}/preferences`).then(r => r.json()).then(d => {
       if (d.mobility || d.interests?.length || d.budget_level || d.home_base) {
-        setPrefs({ mobility: d.mobility || '', interests: (d.interests || []).join(', '), budget_level: d.budget_level || '', home_base: d.home_base || '' });
+        setPrefs({
+          mobility: d.mobility || '',
+          interests: (d.interests || []).join(', '),
+          budget_level: d.budget_level || '',
+          budget_min_hkd: d.budget_min_hkd != null ? String(d.budget_min_hkd) : '',
+          budget_max_hkd: d.budget_max_hkd != null ? String(d.budget_max_hkd) : '',
+          home_base: d.home_base || '',
+        });
       }
     }).catch(e => { console.error('Failed to load preferences:', e); });
   }
@@ -138,12 +145,14 @@ export default function Home() {
   }, [detail]);
 
   async function savePrefs() {
-    const data = {
+    const data: any = {
       mobility: prefs.mobility,
       interests: prefs.interests.split(',').map(s => s.trim()).filter(Boolean),
       budget_level: prefs.budget_level,
       home_base: prefs.home_base,
     };
+    if (prefs.budget_min_hkd) data.budget_min_hkd = Number(prefs.budget_min_hkd);
+    if (prefs.budget_max_hkd) data.budget_max_hkd = Number(prefs.budget_max_hkd);
     await fetch(`${API}/preferences`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
     setShowPrefs(false);
   }
@@ -383,7 +392,7 @@ export default function Home() {
     return `${m} m`;
   }
   function walkTime(m: number, mobility?: string): string {
-    const speedMap: Record<string, number> = { wheelchair: 40, cane: 48, slow: 32, hearing_impaired: 72, visually_impaired: 56 };
+    const speedMap: Record<string, number> = { wheelchair: 40, cane: 48, slow: 32, elderly: 36, with_kids: 40, pregnant: 40, hearing_impaired: 72, visually_impaired: 56, other_needs: 48 };
     const speed = (mobility && speedMap[mobility]) || 80;
     const min = Math.round(m / speed);
     if (min >= 60) return `${Math.floor(min / 60)}h ${min % 60}m`;

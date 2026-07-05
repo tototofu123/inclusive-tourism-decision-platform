@@ -19,7 +19,6 @@ export interface ApiChatResponse {
   finishReason: 'stop' | 'tool_calls' | 'length';
 }
 
-const GEMINI_MODELS = ['gemini-2.0-flash-001', 'gemini-2.0-flash-lite', 'gemini-1.5-flash-002'];
 const LOCAL_BASE = LLAMA_HOST || 'http://127.0.0.1:8081';
 
 let genAiClient: GoogleGenAI | null = null;
@@ -246,10 +245,22 @@ async function chatGemini(
   };
 
   const client = getGenAi(useVertexAi);
-  const models = cfg.model ? [cfg.model] : GEMINI_MODELS;
+
+  // Use configured model from settings, then env var, then defaults
+  const settings = getSettings();
+  let modelsToTry: string[];
+  if (cfg.model) {
+    modelsToTry = [cfg.model];
+  } else if (settings.model) {
+    modelsToTry = [settings.model];
+  } else if (process.env.LLM_MODEL) {
+    modelsToTry = [process.env.LLM_MODEL];
+  } else {
+    modelsToTry = ['gemini-2.0-flash-001', 'gemini-2.0-flash-lite', 'gemini-1.5-flash-002'];
+  }
   let lastError: Error | null = null;
 
-  for (const model of models) {
+  for (const model of modelsToTry) {
     try {
       const result = await client.models.generateContent({ model, contents, config });
       return parseGenAiResult(result);

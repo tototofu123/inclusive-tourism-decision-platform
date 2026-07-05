@@ -16,7 +16,7 @@ export const TOOLS: any[] = [
     type: 'function',
     function: {
       name: 'search_places',
-      description: 'Search for places by category, name, region, or keywords. Regions: kowloon, hong_kong_island, new_territories. Budgets: free, cheap, moderate, expensive. Categories: museum, cafe, restaurant, park, temple, shopping_mall, viewpoint, market, art_gallery, historic_site, hotel.',
+      description: 'Search for places by category, name, region, or keywords. Regions: kowloon, hong_kong_island, new_territories. Budgets: free, cheap, moderate, expensive. Categories are flexible — any type of place.',
       parameters: {
         type: 'object',
         properties: {
@@ -66,9 +66,11 @@ export const TOOLS: any[] = [
       parameters: {
         type: 'object',
         properties: {
-          mobility: { type: 'string', enum: ['none', 'wheelchair', 'cane', 'slow', 'fast', 'hearing_impaired', 'visually_impaired'], description: 'Mobility status — only set if user explicitly mentions it' },
-          interests: { type: 'array', items: { type: 'string', enum: ['museum', 'cafe', 'restaurant', 'park', 'temple', 'shopping_mall', 'viewpoint', 'market', 'art_gallery', 'historic_site', 'hotel'] }, description: 'Interests — only set if user explicitly mentions categories they like' },
-          budget_level: { type: 'string', enum: ['cheap', 'medium', 'expensive'], description: 'Budget level — only set if user explicitly mentions budget' },
+          mobility: { type: 'string', description: 'Mobility status — values: none, wheelchair, cane, slow, fast, hearing_impaired, visually_impaired, elderly, with_kids, pregnant, other_needs. Only set if user explicitly mentions it.' },
+          interests: { type: 'array', items: { type: 'string' }, description: 'Interests — free-text categories the user likes (e.g. museum, park, cafe, shopping, hiking, etc.). Only set if user explicitly mentions categories they like.' },
+          budget_level: { type: 'string', description: 'Budget level — values: cheap, medium, expensive. Only set if user explicitly mentions budget.' },
+          budget_min_hkd: { type: 'number', description: 'Minimum daily budget in HKD — only set if user gives a specific number or range.' },
+          budget_max_hkd: { type: 'number', description: 'Maximum daily budget in HKD — only set if user gives a specific number or range.' },
           home_base: { type: 'string', description: 'Area/neighborhood user is staying in — only set if user explicitly states it' },
         },
       },

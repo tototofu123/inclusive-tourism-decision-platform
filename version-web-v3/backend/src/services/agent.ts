@@ -47,7 +47,7 @@ Tools (use native function calling):
 
 RULES:
 1. If user says mobility status → call set_preferences immediately
-2. For wheelchair/cane/slow users → search_places → check_accessibility → only recommend confirmed accessible
+2. For mobility needs (wheelchair, cane, elderly, with_kids, pregnant, slow, etc.) → search_places → check_accessibility → only recommend confirmed accessible
 3. For itineraries → use route_distance to keep walks short, find_transport for MTR with elevators
 4. Be concise. Respond in English. Only discuss HK tourism.`;
 
@@ -57,15 +57,21 @@ export async function processChat(
   onThink?: (step: string) => void,
   sessionId?: number,
 ): Promise<ChatResponse> {
-  const emit = (msg: string) => { if (onThink) onThink(msg); };
+  const thinkingSteps: string[] = [];
+  const emit = (msg: string) => {
+    thinkingSteps.push(msg);
+    if (onThink) onThink(msg);
+  };
 
   const safeText = sanitizeInput(text);
   const injectionBlock = detectPromptInjection(safeText);
   if (injectionBlock) {
+    emit('Checking message...');
     return { thinking: ['Checking message...', 'Done!'], response: injectionBlock };
   }
   const offTopicBlock = detectOffTopic(safeText);
   if (offTopicBlock) {
+    emit('Checking message...');
     return { thinking: ['Checking message...', 'Done!'], response: offTopicBlock };
   }
   text = safeText;
@@ -117,7 +123,9 @@ export async function processChat(
   messages.push({ role: 'user', content: text });
 
   try {
-    return await agentLoop(messages, itineraryId, emit);
+    const result = await agentLoop(messages, itineraryId, emit);
+    result.thinking = [...thinkingSteps, 'Done!'];
+    return result;
   } catch (err) {
     const errorMsg = (err as Error).message || '';
     console.error('LLM error:', errorMsg);

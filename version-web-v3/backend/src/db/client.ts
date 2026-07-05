@@ -130,6 +130,8 @@ function initLocalSchema() {
       mobility TEXT DEFAULT 'none',
       interests TEXT DEFAULT '[]',
       budget_level TEXT DEFAULT 'medium',
+      budget_min_hkd REAL,
+      budget_max_hkd REAL,
       home_base TEXT DEFAULT '',
       urgent_mode INTEGER DEFAULT 0,
       confirmed_itinerary_id INTEGER,

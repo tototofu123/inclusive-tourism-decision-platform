@@ -11,7 +11,7 @@ export default function Header({
   showModels, models, currentModel, modelSwitching, switchModel, setShowModels, modelRef,
   showItinSwitch, itineraries, currentItineraryId, switchItinerary, setShowItinSwitch, itinSwitcher,
 }: {
-  tab: string; sessionTitle: string; prefs: { mobility: string; interests: string; budget_level: string; home_base: string };
+  tab: string; sessionTitle: string; prefs: { mobility: string; interests: string; budget_level: string; budget_min_hkd: string; budget_max_hkd: string; home_base: string };
   showSessions: boolean; sessions: SessionSummary[]; loadSession: (id: number) => void; newSession: () => void; setShowSessions: (v: boolean) => void; sessRef: RefObject<HTMLDivElement | null>;
   showPrefs: boolean; setShowPrefs: (v: boolean) => void; setPrefs: (v: any) => void; savePrefs: () => void; prefsRef: RefObject<HTMLDivElement | null>;
   showSettings: boolean; setShowSettings: (v: boolean) => void; settings: any; setSettings: (v: any) => void; saveSettings: () => void; settingsRef: RefObject<HTMLDivElement | null>;
@@ -62,8 +62,10 @@ export default function Header({
                   <div className="pill-group">
                     {[
                       { v: 'wheelchair', l: '♿ Wheelchair' }, { v: 'cane', l: '🦯 Walking cane' },
-                      { v: 'slow', l: '🐢 Slow walker' }, { v: 'hearing_impaired', l: '👂 Hearing impaired' },
-                      { v: 'visually_impaired', l: '👁 Visually impaired' }, { v: 'none', l: 'None' },
+                      { v: 'elderly', l: '👴 Elderly' }, { v: 'with_kids', l: '👶 With kids' },
+                      { v: 'pregnant', l: '🤰 Pregnant' }, { v: 'slow', l: '🐢 Slow walker' },
+                      { v: 'hearing_impaired', l: '👂 Hearing' }, { v: 'visually_impaired', l: '👁 Visual' },
+                      { v: 'other_needs', l: '♿ Other needs' }, { v: 'none', l: 'None' },
                     ].map(({ v, l }) => (
                       <button key={v} className={`pill-btn ${prefs.mobility === (v === 'none' ? '' : v) ? 'pill-active' : ''}`} onClick={() => setPrefs((x: any) => ({ ...x, mobility: v === 'none' ? '' : v }))}>{l}</button>
                     ))}
@@ -77,10 +79,12 @@ export default function Header({
                       }))}>{cat.replace(/_/g, ' ')}</button>;
                     })}
                   </div>
-                  <input className="field-input" placeholder="Other interests (comma separated)" value={prefs.interests} onChange={e => setPrefs((x: any) => ({ ...x, interests: e.target.value }))} />
+                  <input className="field-input" placeholder="Any interests (comma separated)" value={prefs.interests} onChange={e => setPrefs((x: any) => ({ ...x, interests: e.target.value }))} />
                   <select className="field-input" value={prefs.budget_level} onChange={e => setPrefs((x: any) => ({ ...x, budget_level: e.target.value }))}>
-                    <option value="">Budget…</option><option value="cheap">💰 Cheap</option><option value="moderate">💰💰 Moderate</option><option value="expensive">💰💰💰 Expensive</option>
+                    <option value="">Budget level…</option><option value="cheap">💰 Cheap</option><option value="moderate">💰💰 Moderate</option><option value="expensive">💰💰💰 Expensive</option>
                   </select>
+                  <input className="field-input" type="number" placeholder="Min daily budget HKD" value={prefs.budget_min_hkd || ''} onChange={e => setPrefs((x: any) => ({ ...x, budget_min_hkd: e.target.value ? Number(e.target.value) : '' }))} />
+                  <input className="field-input" type="number" placeholder="Max daily budget HKD" value={prefs.budget_max_hkd || ''} onChange={e => setPrefs((x: any) => ({ ...x, budget_max_hkd: e.target.value ? Number(e.target.value) : '' }))} />
                   <input className="field-input" placeholder="Home base / hotel area" value={prefs.home_base} onChange={e => setPrefs((x: any) => ({ ...x, home_base: e.target.value }))} />
                   <div className="panel-actions">
                     <button className="btn-secondary" onClick={() => setShowPrefs(false)}>Cancel</button>

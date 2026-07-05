@@ -69,12 +69,13 @@ export default function MapView({
       let popup: string;
 
       if (m.type === 'saved') {
+        const color = COLORS[m.category || ''] || '#0070f3';
         icon = L.divIcon({
           className: '',
-          html: `<div style="width:16px;height:16px;background:#999;border-radius:2px;opacity:0.6;border:1.5px solid #bbb;cursor:pointer" aria-label="Saved place: ${m.label}"></div>`,
+          html: `<div style="width:16px;height:16px;background:${color};border-radius:3px;opacity:0.8;border:2px solid ${color};cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.3)" aria-label="Saved place: ${m.label}"></div>`,
           iconSize: [16, 16], iconAnchor: [8, 8],
         });
-        popup = `<b>${m.label}</b>`;
+        popup = `<b>${m.label}</b><br/><span style="font-size:.72rem;color:#666">${(m.category || '').replace(/_/g, ' ')}</span>`;
       } else {
         itinCounter++;
         const color = COLORS[m.category || ''] || '#0070f3';

@@ -108,7 +108,12 @@ router.post('/chat', async (req: Request, res: Response) => {
 
     const pState = processes.get(processId);
     if (pState) {
-      pState.thinking = result.thinking || pState.thinking;
+      // Append final result thinking without replacing accumulated steps
+      if (result.thinking?.length) {
+        for (const t of result.thinking) {
+          if (!pState.thinking.includes(t)) pState.thinking.push(t);
+        }
+      }
       pState.result = result;
       pState.done = true;
     }

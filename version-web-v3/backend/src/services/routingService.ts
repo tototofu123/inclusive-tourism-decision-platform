@@ -130,8 +130,11 @@ function decodePolyline(encoded: string): [number, number][] {
 
 function haversineFallback(fromLat: number, fromLng: number, toLat: number, toLng: number) {
   const dist = haversineMeters(fromLat, fromLng, toLat, toLng);
-  const roadDist = dist * 1.4;
-  const durSec = Math.round(roadDist / 1.4);
+  // Clamp minimum: even adjacent buildings are at least 30m apart
+  const MIN_METERS = 30;
+  const clampedDist = Math.max(dist, MIN_METERS);
+  const roadDist = clampedDist * 1.4;
+  const durSec = Math.max(Math.round(roadDist / 1.4), 30);
   return {
     distance_meters: Math.round(roadDist),
     duration_seconds: durSec,
