@@ -64,11 +64,10 @@ export async function resolveStops(
     const placeType = CATEGORY_PLACE_TYPE[stop.category] || 'attraction';
     let place: { id?: number; name: string; lat: number; lng: number } | null = null;
 
-    const params: any[] = [placeType, cats];
+    const params: any[] = [cats];
     let sql = `SELECT id, name, lat, lng FROM places
-               WHERE place_type = $1
-                 AND (LOWER(category) = ANY($2) OR LOWER(place_type) = ANY($2))`;
-    let idx = 3;
+               WHERE (LOWER(category) = ANY($1) OR LOWER(place_type) = ANY($1))`;
+    let idx = 2;
     if (region) { sql += ` AND region = $${idx++}`; params.push(region); }
     if (budget) { sql += ` AND budget = $${idx++}`; params.push(budget); }
     sql += ` ORDER BY accessibility_score DESC, RANDOM() LIMIT 3`;

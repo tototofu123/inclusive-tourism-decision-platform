@@ -19,11 +19,10 @@ const STEPS = [
 async function run() {
   console.log('=== STARTING DEMONSTRATION FLOW SIMULATION ===');
   
-  // 1. Create a new session
   const sessRes = await fetch(`${API}/sessions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title: 'Demo Flow Session Correct' }),
+    body: JSON.stringify({ title: 'Demo Flow Final' }),
   });
   const session = await sessRes.json();
   const sessionId = session.id;
@@ -31,20 +30,9 @@ async function run() {
 
   let currentItineraryId: number | null = null;
 
-  // 2. Loop and send messages
   for (let i = 0; i < STEPS.length; i++) {
     const text = STEPS[i];
     console.log(`\n[Step ${i + 1}/${STEPS.length}] User: "${text}"`);
-
-    // Check if we need to mock "Use Itinerary" action for Step 6/7
-    if (i === 6 && currentItineraryId) {
-      console.log(`Simulating 'Use Itinerary' click for Itinerary #${currentItineraryId}...`);
-      await fetch(`${API}/itinerary/${currentItineraryId}/confirm`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId }),
-      });
-    }
 
     const startRes = await fetch(`${API}/chat`, {
       method: 'POST',
@@ -60,38 +48,24 @@ async function run() {
     const startData = await startRes.json();
     const processId = startData.processId;
 
-    // Poll status
     let done = false;
-    let lastResponse = '';
     while (!done) {
       await new Promise(r => setTimeout(r, 500));
       const statusRes = await fetch(`${API}/chat/status/${processId}`);
-      if (!statusRes.ok) {
-        console.error('Failed to get status');
-        break;
-      }
+      if (!statusRes.ok) { console.error('Failed to get status'); break; }
       const status = await statusRes.json();
       done = status.done;
-      lastResponse = status.response || '';
-      if (status.itinerary?.id) {
-        currentItineraryId = status.itinerary.id;
-      }
-      if (status.thinking && status.thinking.length > 0) {
-        process.stdout.write('.');
-      }
+      if (status.itinerary?.id) currentItineraryId = status.itinerary.id;
+      if (!done) process.stdout.write('.');
     }
-    console.log('\nBot response received.');
+    console.log('\nBot done.');
   }
 
-  console.log('\n=== DEMONSTRATION FLOW COMPLETED ===');
-  console.log(`To see this conversation in the app:`);
-  console.log(`1. Open http://localhost:3000 in your browser.`);
-  console.log(`2. Click the 'Sessions' button in the top header.`);
-  console.log(`3. Select 'Demo Flow Session Correct' (Session #${sessionId}).`);
+  console.log('\n=== COMPLETED ===');
+  console.log(`Session #${sessionId} — check itinerary items:`);
+  const items = await query('SELECT COUNT(*) as c FROM itinerary_items');
+  console.log('Total itinerary_items in DB:', items.rows[0].c);
   process.exit(0);
 }
 
-run().catch(e => {
-  console.error('Flow failed:', e);
-  process.exit(1);
-});
+run().catch(e => { console.error('Flow failed:', e); process.exit(1); });
