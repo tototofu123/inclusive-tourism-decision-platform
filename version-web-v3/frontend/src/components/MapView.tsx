@@ -108,8 +108,8 @@ export default function MapView({
         const color = COLORS[m.category || ''] || '#0070f3';
         icon = L.divIcon({
           className: '',
-          html: `<div style="width:16px;height:16px;background:${color};border-radius:3px;opacity:0.8;border:2px solid ${color};cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.3)" aria-label="Saved place: ${m.label}"></div>`,
-          iconSize: [16, 16], iconAnchor: [8, 8],
+          html: `<div style="width:22px;height:22px;background:${color};border-radius:50%;opacity:0.85;border:2px solid white;cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,.3)"></div>`,
+          iconSize: [22, 22], iconAnchor: [11, 11],
         });
         popup = `<b>${m.label}</b><br/><span style="font-size:.72rem;color:#666">${(m.category || '').replace(/_/g, ' ')}</span>`;
       } else {
@@ -125,8 +125,8 @@ export default function MapView({
         }
         icon = L.divIcon({
           className: '',
-          html: `<div style="position:relative">${badgeHtml}<div style="background:${color};color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,.3)">${itinCounter}</div></div>`,
-          iconSize: [28, 28], iconAnchor: [14, 14],
+          html: `<div style="position:relative;width:34px;height:34px;background:${color};color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:bold;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,.3)">${itinCounter}${badgeHtml}</div>`,
+          iconSize: [34, 34], iconAnchor: [17, 17],
         });
         popup = m.day
           ? `<b>${m.label}</b><br/><span style="color:#0070f3;font-size:.85rem">Day ${m.day}</span>`

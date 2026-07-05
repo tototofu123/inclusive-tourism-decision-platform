@@ -44,12 +44,15 @@ Tools (use native function calling):
 - optimize_route: reorder stops to minimize walking
 - get_bus_eta: real-time HK bus arrival for Citybus/KMB routes. Provide route + stop name to check ETA.
 - set_preferences: save mobility status, interests, budget, home base. Call this FIRST when user shares personal info.
+- web_search: search for real-time info like hotel facilities, weather, events, operating hours, accessibility details, travel tips, food reviews, or any current info not in our DB.
 
 RULES:
 1. If user says mobility status → call set_preferences immediately
 2. For mobility needs (wheelchair, cane, elderly, with_kids, pregnant, slow, etc.) → search_places → check_accessibility → only recommend confirmed accessible
 3. For itineraries → use route_distance to keep walks short, find_transport for MTR with elevators
-4. Be concise. Respond in English. Only discuss HK tourism.`;
+4. Be concise. Respond in English. Only discuss HK tourism.
+5. NEVER delete a confirmed/pinned itinerary. If the user asks to delete a pinned itinerary, explain that it's pinned and they can unpin it first.
+6. When user says "use itinerary" or "pin this" or "fix it", confirm the itinerary — this saves it as the user's active plan so future edits build on it. Use set_preferences to save confirmed_itinerary_id.`;
 
 export async function processChat(
   text: string,
@@ -235,7 +238,7 @@ async function agentLoop(
       e(`Thinking (step ${loopCount})...`);
       messagesWithDoc.push({
         role: 'user',
-        content: 'Review the tool results above. Provide a helpful natural-language response with the data you have.',
+        content: 'Review the tool results above. If you still need to perform other actions (such as creating an itinerary, searching for places, or checking accessibility) to fully satisfy the user\'s original request, make those tool calls now. Otherwise, provide a helpful natural-language response.',
       });
     }
 

@@ -205,16 +205,19 @@ export async function chatCompletion(
   const body: any = {
     messages,
     temperature: cfg.temperature ?? 0.1,
-    max_tokens: Math.min(cfg.maxTokens ?? 2048, 2048),
+    max_tokens: cfg.maxTokens ?? 4096,
   };
 
-  const localTools = tools?.length
-    ? tools
-    : effectiveProvider === 'local'
-      ? undefined
-      : TOOLS.map(t => ({ type: 'function', function: { name: t.function.name, description: t.function.description, parameters: t.function.parameters } }));
-  if (localTools?.length) body.tools = localTools;
-  body.tool_choice = 'auto';
+  const localTools = tools !== undefined
+    ? (tools.length ? tools : undefined)
+    : TOOLS.map(t => ({ type: 'function', function: { name: t.function.name, description: t.function.description, parameters: t.function.parameters } }));
+  
+  if (localTools?.length) {
+    body.tools = localTools;
+    body.tool_choice = 'auto';
+  } else {
+    body.response_format = { type: 'json_object' };
+  }
 
   const res = await fetchWithTimeout(
     `${baseUrl}/v1/chat/completions`,

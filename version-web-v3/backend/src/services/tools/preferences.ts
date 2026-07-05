@@ -31,6 +31,7 @@ export async function setPreferencesTool(args: any, emit: EmitFn): Promise<ToolR
   if (args.budget_min_hkd != null || args.min_hkd != null) changes.budget_min_hkd = args.budget_min_hkd ?? args.min_hkd;
   if (args.budget_max_hkd != null || args.max_hkd != null) changes.budget_max_hkd = args.budget_max_hkd ?? args.max_hkd;
   if (args.home_base) changes.home_base = args.home_base;
+  if (args.confirmed_itinerary_id != null) changes.confirmed_itinerary_id = args.confirmed_itinerary_id;
 
   if (Object.keys(changes).length === 0) {
     return { response: 'I didn\'t catch any preferences to save. You can tell me about your mobility, interests, budget, or where you\'re staying.' };
@@ -44,6 +45,7 @@ export async function setPreferencesTool(args: any, emit: EmitFn): Promise<ToolR
   if (prefs.budget_level && prefs.budget_level !== 'medium') parts.push(`budget: ${prefs.budget_level}`);
   if (prefs.budget_min_hkd != null && prefs.budget_max_hkd != null) parts.push(`daily budget: HK$${prefs.budget_min_hkd}-HK$${prefs.budget_max_hkd}`);
   if (prefs.home_base) parts.push(`staying in: ${prefs.home_base}`);
+  if (prefs.confirmed_itinerary_id != null) parts.push(`using itinerary #${prefs.confirmed_itinerary_id} (pinned)`);
 
   emit('Saved your preferences!');
   return { response: `I've saved your preferences: ${parts.join('; ')}. I'll use these to tailor recommendations going forward.` };

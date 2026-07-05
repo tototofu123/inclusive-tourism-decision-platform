@@ -1,6 +1,16 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { useJsApiLoader, GoogleMap, Marker, InfoWindow, Polyline } from '@react-google-maps/api';
 
+if (typeof window !== 'undefined') {
+  const originalWarn = console.warn;
+  console.warn = (...args) => {
+    if (args[0] && typeof args[0] === 'string' && (args[0].includes('google.maps.Marker') || args[0].includes('deprecated'))) {
+      return;
+    }
+    originalWarn(...args);
+  };
+}
+
 const CONTAINER_STYLE = { height: '100%', width: '100%' };
 const KOWLOON_CENTER = { lat: 22.31, lng: 114.17 };
 
@@ -10,8 +20,8 @@ const COLORS: Record<string, string> = {
   market: '#d35400', art_gallery: '#1abc9c', historic_site: '#8e44ad',
   restroom: '#7f8c8d', toilet: '#7f8c8d', hotel: '#2c3e50', attraction: '#16a085',
   transit: '#95a5a6', bus_stop: '#95a5a6', bus: '#95a5a6', mtr: '#95a5a6',
-  landmark: '#34495e', beach: '#27ae60', amusement_park: '#16a085',
-  library: '#1abc9c', entertainment: '#9b59b6', hospital: '#e74c3c',
+  landmark: '#34495e', beach: '#27ae60', amusement_park: '#e84393',
+  library: '#1abc9c', entertainment: '#fd79a8', hospital: '#e74c3c', transport_hub: '#636e72',
 };
 
 const LEGEND_ITEMS = [
@@ -29,23 +39,24 @@ const LEGEND_ITEMS = [
   { label: 'Attraction', color: '#16a085' },
   { label: 'Restroom/Toilet', color: '#7f8c8d' },
   { label: 'Transit/Bus', color: '#95a5a6' },
-  { label: 'Entertainment', color: '#9b59b6' },
+  { label: 'Entertainment', color: '#fd79a8' },
   { label: 'Hospital', color: '#e74c3c' },
+  { label: 'Transport Hub', color: '#636e72' },
+  { label: 'Amusement Park', color: '#e84393' },
 ];
-
-const PROMINENT_CATS = new Set(['museum', 'shopping_mall', 'park', 'landmark', 'viewpoint', 'historic_site', 'hotel', 'hospital', 'amusement_park']);
 
 const API_KEY = process.env.NEXT_PUBLIC_MAPS_API_KEY || '';
 const MAP_ID = process.env.NEXT_PUBLIC_MAPS_MAP_ID || '';
 
 export default function GoogleMapView({
-  markers, routes, className, accessibilityScores, accessibilityTags,
+  markers, routes, className, accessibilityScores, accessibilityTags, onLoadError,
 }: {
   markers: { lat: number; lng: number; label: string; category?: string; day?: number; type?: 'itinerary' | 'saved' }[];
   routes: { from: [number, number]; to: [number, number]; geometry?: any; distance: number }[];
   className?: string;
   accessibilityScores?: Map<string, number>;
   accessibilityTags?: Map<string, string[]>;
+  onLoadError?: (err: any) => void;
 }) {
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [zoom, setZoom] = useState(13);
@@ -59,6 +70,12 @@ export default function GoogleMapView({
     googleMapsApiKey: API_KEY,
     mapIds: MAP_ID ? [MAP_ID] : undefined,
   });
+
+  useEffect(() => {
+    if (loadError && onLoadError) {
+      onLoadError(loadError);
+    }
+  }, [loadError, onLoadError]);
 
   const onLoad = useCallback((map: google.maps.Map) => {
     mapRef.current = map;
@@ -103,7 +120,6 @@ export default function GoogleMapView({
   }
 
   const zoomLevel = zoom || 13;
-  const showAllSaved = zoomLevel >= 15;
 
   const itinMarkers: typeof markers = [];
   const savedMarkers: typeof markers = [];
@@ -112,11 +128,10 @@ export default function GoogleMapView({
     else itinMarkers.push(m);
   });
 
-  const prominentSaved = savedMarkers.filter(m => PROMINENT_CATS.has(m.category || ''));
-  const visibleSaved = showAllSaved ? savedMarkers : (savedMarkers.length > 30 ? prominentSaved : savedMarkers);
-  const allVisible = [...itinMarkers, ...visibleSaved];
+  const allVisible = [...itinMarkers, ...savedMarkers];
 
   let itinCounter = 0;
+  let savedCounter = 0;
 
   return (
     <div className={className} style={{ position: 'relative', ...CONTAINER_STYLE }}>
@@ -151,14 +166,14 @@ export default function GoogleMapView({
                 position={{ lat: m.lat, lng: m.lng }}
                 icon={{
                   path: google.maps.SymbolPath.CIRCLE,
-                  scale: 14,
+                  scale: 18,
                   fillColor: color,
                   fillOpacity: 1,
                   strokeColor: '#fff',
                   strokeWeight: 3,
-                  labelOrigin: new google.maps.Point(0, 4),
+                  labelOrigin: new google.maps.Point(0, 0),
                 }}
-                label={{ text: String(itinCounter), color: '#fff', fontSize: '11px', fontWeight: 'bold' }}
+                label={{ text: String(itinCounter), color: '#fff', fontSize: '13px', fontWeight: 'bold' }}
                 onClick={() => setSelectedIdx(idx)}
               >
                 {selectedIdx === idx && (
@@ -174,18 +189,21 @@ export default function GoogleMapView({
             );
           }
 
+          savedCounter++;
           return (
             <Marker
               key={`s-${idx}`}
               position={{ lat: m.lat, lng: m.lng }}
               icon={{
                 path: google.maps.SymbolPath.CIRCLE,
-                scale: zoomLevel >= 14 ? 8 : 6,
+                scale: 15,
                 fillColor: color,
-                fillOpacity: zoomLevel >= 14 ? 0.8 : 0.5,
+                fillOpacity: 0.85,
                 strokeColor: '#fff',
-                strokeWeight: 2,
+                strokeWeight: 3,
+                labelOrigin: new google.maps.Point(0, 0),
               }}
+              label={{ text: String(savedCounter), color: '#fff', fontSize: '11px', fontWeight: 'bold' }}
               title={m.label}
               onClick={() => setSelectedIdx(idx)}
             >
@@ -229,7 +247,7 @@ export default function GoogleMapView({
           </div>
         ))}
         <div style={{ marginTop: 4, fontSize: 10, color: '#888' }}>
-          {zoomLevel < 15 ? 'Zoom in for all places' : 'Showing all places'} &bull; {allVisible.length} shown
+          {itinMarkers.length > 0 ? `${itinMarkers.length} itinerary + ` : ''}{savedMarkers.length} places &bull; zoom for details
         </div>
       </div>
     </div>

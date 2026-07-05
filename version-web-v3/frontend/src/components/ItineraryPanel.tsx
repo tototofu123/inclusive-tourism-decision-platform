@@ -9,7 +9,7 @@ interface ItineraryDetail {
     route_geometry_json?: { type: string; coordinates: number[][] };
     accessibility_score?: number; accessibility_tags?: string[];
   }>;
-  costSummary?: { totalTransport: number; totalEntry: number; totalAll: number };
+  costSummary?: { totalTransport: number; totalEntry: number; totalAll: number; confirmedCount?: number };
 }
 
 export default function ItineraryPanel({
@@ -51,7 +51,12 @@ export default function ItineraryPanel({
     <div className="detail-view">
       <div className="detail-header">
         <div className="detail-hdr-row">
-          <h2>Itinerary #{detail.itinerary.id}</h2>
+          <h2>
+            Itinerary #{detail.itinerary.id}
+            {detail.costSummary?.confirmedCount && detail.costSummary.confirmedCount > 0 ? (
+              <span className="pinned-badge" style={{ marginLeft: '10px', fontSize: '0.8rem', background: '#27ae60', color: 'white', padding: '3px 10px', borderRadius: '12px', verticalAlign: 'middle', fontWeight: 'normal' }}>📌 Active & Pinned</span>
+            ) : null}
+          </h2>
           <button className="itin-header-showmap" onClick={showOnMap}>Show on Map</button>
         </div>
         <div className="detail-meta">{detail.items.length} stops · {new Date(detail.itinerary.created_at).toLocaleString()}</div>

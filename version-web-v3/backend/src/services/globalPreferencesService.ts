@@ -62,7 +62,7 @@ export async function setGlobalPreferences(prefs: Partial<GlobalPreferences>): P
          confirmed_itinerary_id=EXCLUDED.confirmed_itinerary_id, updated_at=NOW()`,
       [merged.mobility, merged.interests, merged.budget_level,
        merged.budget_min_hkd, merged.budget_max_hkd,
-       merged.home_base, merged.urgent_mode, merged.confirmed_itinerary_id]
+       merged.home_base, merged.urgent_mode ? 1 : 0, merged.confirmed_itinerary_id]
     );
   } catch (err) {
     console.error('setGlobalPreferences DB error (cache still active):', err);

@@ -26,6 +26,7 @@ export default function ChatPanel({
   msgs, loading, input, setInput, send,
   collapsedThinking, setCollapsedThinking, msgEnd,
   detail, currentItineraryId, fetchDetail, setTab, setCurrentPlaces, setDayFilter,
+  confirmItinerary,
 }: {
   msgs: ChatMsg[]; loading: boolean; input: string; setInput: (v: string) => void;
   send: (text: string) => Promise<void>;
@@ -33,6 +34,7 @@ export default function ChatPanel({
   msgEnd: RefObject<HTMLDivElement | null>; detail?: any; currentItineraryId?: number;
   fetchDetail: (id: number) => void; setTab: (tab: 'chat' | 'map' | 'itinerary') => void;
   setCurrentPlaces: (v: any[]) => void; setDayFilter: (v: number | null) => void;
+  confirmItinerary: (id: number) => void;
 }) {
   return (
     <>
@@ -97,6 +99,11 @@ export default function ChatPanel({
                       {m.places && m.places.length > 0 && (
                         <button className="action-btn secondary" onClick={() => { setCurrentPlaces(m.places!); setDayFilter(null); setTab('map'); }}>
                           Show on Map ({m.places.length})
+                        </button>
+                      )}
+                      {m.itineraryId && (
+                        <button className="action-btn primary" onClick={() => { confirmItinerary(m.itineraryId!); setTab('itinerary'); }}>
+                          Use Itinerary #{m.itineraryId}
                         </button>
                       )}
                     </div>

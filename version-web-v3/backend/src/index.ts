@@ -23,7 +23,7 @@ const PORT = parseInt(process.env.PORT || '4000');
 app.use(cors({ origin: [APP_ORIGIN, /^https?:\/\/localhost(:\d+)?$/], methods: ['GET', 'POST', 'PUT', 'DELETE'] }));
 app.use(express.json({ limit: '100kb' }));
 
-app.use('/chat', rateLimit(60_000, 20, 200));
+app.post('/chat', rateLimit(60_000, 10, 50));
 app.use('/places', rateLimit(10_000, 10, 100));
 app.use('/itineraries', rateLimit(30_000, 15, 100));
 app.use('/preferences', rateLimit(10_000, 10, 100));

@@ -99,14 +99,41 @@ export default function Header({
                 <div className="dropdown-panel">
                   <div className="dropdown-panel-title">LLM Settings</div>
                   <div className="field-label">Provider</div>
-                  <select className="field-input" value={settings.provider} onChange={e => setSettings((x: any) => ({ ...x, provider: e.target.value }))}>
+                  <select className="field-input" value={settings.provider} onChange={e => {
+                    const nextProv = e.target.value;
+                    const matching = models.find((m: any) => {
+                      const prov = typeof m === 'string' ? '' : (m.provider || '');
+                      if (nextProv === 'gemini' || nextProv === 'vertex') return prov === 'gemini';
+                      return prov === nextProv;
+                    });
+                    const nextModel = matching ? (typeof matching === 'string' ? matching : (matching as any).id) : '';
+                    setSettings((x: any) => ({ ...x, provider: nextProv, model: nextModel }));
+                  }}>
                     <option value="gemini">Gemini API</option>
                     <option value="vertex">Vertex AI</option>
                     <option value="local">Local (llama.cpp)</option>
                     <option value="custom">Custom API</option>
                   </select>
                   <div className="field-label">Model</div>
-                  <input className="field-input" value={settings.model} onChange={e => setSettings((x: any) => ({ ...x, model: e.target.value }))} placeholder="e.g. gemini-2.0-flash-001" />
+                  <select className="field-input" value={settings.model} onChange={e => setSettings((x: any) => ({ ...x, model: e.target.value }))}>
+                    {models.length === 0 ? (
+                      <option value="">Loading models...</option>
+                    ) : (
+                      models
+                        .filter((m: any) => {
+                          const prov = typeof m === 'string' ? '' : (m.provider || '');
+                          if (settings.provider === 'gemini' || settings.provider === 'vertex') {
+                            return prov === 'gemini';
+                          }
+                          return prov === settings.provider;
+                        })
+                        .map((m: any) => {
+                          const id = typeof m === 'string' ? m : m.id;
+                          const prov = typeof m === 'string' ? '' : (m.provider || '');
+                          return <option key={id} value={id}>{id}{prov ? ` (${prov})` : ''}</option>;
+                        })
+                    )}
+                  </select>
                   {settings.provider === 'custom' && (
                     <>
                       <div className="field-label">Custom API URL</div>
@@ -129,12 +156,16 @@ export default function Header({
               {showModels && (
                 <div className="dropdown-menu dropdown-right" role="listbox" aria-label="Available models">
                   {models.length === 0 && <div className="dropdown-empty">No models found</div>}
-                  {models.map(m => (
-                    <div key={m} className="dropdown-item" role="option" aria-selected={m === currentModel} tabIndex={-1} onClick={() => switchModel(m)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); switchModel(m); } }}>
-                      <div className="dropdown-item-title">{m.replace(/\.gguf$/, '')}</div>
-                      <div className="dropdown-item-sub">{m.endsWith('.gguf') ? 'Local GGUF' : ''}</div>
-                    </div>
-                  ))}
+                  {models.map((m: any) => {
+                    const id = typeof m === 'string' ? m : m.id;
+                    const prov = typeof m === 'string' ? '' : (m.provider || '');
+                    return (
+                      <div key={id} className="dropdown-item" role="option" aria-selected={id === currentModel} tabIndex={-1} onClick={() => switchModel(id)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); switchModel(id); } }}>
+                        <div className="dropdown-item-title">{id.replace(/\.gguf$/, '').slice(0, 30)}</div>
+                        <div className="dropdown-item-sub">{prov || (id.endsWith('.gguf') ? 'Local GGUF' : '')}</div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

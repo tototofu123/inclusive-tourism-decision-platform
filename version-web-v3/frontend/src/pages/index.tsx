@@ -66,7 +66,7 @@ export default function Home() {
   const [modelSwitching, setModelSwitching] = useState(false);
   const modelRef = useRef<HTMLDivElement>(null);
   const [showPrefs, setShowPrefs] = useState(false);
-  const [prefs, setPrefs] = useState({ mobility: '', interests: '', budget_level: '', budget_min_hkd: '', budget_max_hkd: '', home_base: '' });
+  const [prefs, setPrefs] = useState({ mobility: '', interests: '', budget_level: '', budget_min_hkd: '', budget_max_hkd: '', home_base: '', confirmed_itinerary_id: null as number | null });
   const prefsRef = useRef<HTMLDivElement>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState({
@@ -98,14 +98,14 @@ export default function Home() {
     }
     fetch(`${API}/itineraries`).then(r => r.json()).then(d => setItineraries(d)).catch(e => { console.error('Failed to load itineraries:', e); setToast('Failed to load itineraries'); });
     fetchSessions();
-    fetch(`${API}/places`).then(r => r.json()).then(d => { setStoredPlaces(d.places || []); setPlacesTotal(d.total || 0); }).catch(e => { console.error('Failed to load places:', e); setToast('Failed to load places'); });
+    fetch(`${API}/places?limit=200`).then(r => r.json()).then(d => { setStoredPlaces(d.places || []); setPlacesTotal(d.total || 0); }).catch(e => { console.error('Failed to load places:', e); setToast('Failed to load places'); });
     fetch(`${API}/models`).then(r => r.json()).then(d => { setModels(d.models || []); setCurrentModel(d.current || ''); }).catch(e => { console.error('Failed to load models:', e); });
     fetch(`${API}/settings`).then(r => r.json()).then(d => setSettings(d)).catch(e => { console.error('Failed to load settings:', e); });
   }, [fetchSessions]);
 
   function loadPrefs() {
     fetch(`${API}/preferences`).then(r => r.json()).then(d => {
-      if (d.mobility || d.interests?.length || d.budget_level || d.home_base) {
+      if (d.mobility || d.interests?.length || d.budget_level || d.home_base || d.confirmed_itinerary_id) {
         setPrefs({
           mobility: d.mobility || '',
           interests: (d.interests || []).join(', '),
@@ -113,6 +113,7 @@ export default function Home() {
           budget_min_hkd: d.budget_min_hkd != null ? String(d.budget_min_hkd) : '',
           budget_max_hkd: d.budget_max_hkd != null ? String(d.budget_max_hkd) : '',
           home_base: d.home_base || '',
+          confirmed_itinerary_id: d.confirmed_itinerary_id || null,
         });
       }
     }).catch(e => { console.error('Failed to load preferences:', e); });
@@ -344,11 +345,15 @@ export default function Home() {
 
   async function confirmItinerary(id: number) {
     await fetch(`${API}/itinerary/${id}/confirm`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId }) });
+    setToast(`Itinerary #${id} is now active and pinned!`);
+    loadPrefs();
     fetchDetail(id);
   }
 
   async function unlockItinerary(id: number) {
     await fetch(`${API}/itinerary/${id}/unlock`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId }) });
+    setToast(`Itinerary #${id} unlocked.`);
+    loadPrefs();
     fetchDetail(id);
   }
 
@@ -423,6 +428,7 @@ export default function Home() {
             collapsedThinking={collapsedThinking} setCollapsedThinking={setCollapsedThinking} msgEnd={msgEnd}
             detail={detail} currentItineraryId={currentItineraryId} fetchDetail={fetchDetail}
             setTab={setTab} setCurrentPlaces={setCurrentPlaces} setDayFilter={setDayFilter}
+            confirmItinerary={confirmItinerary}
           />
         </div>
 

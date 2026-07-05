@@ -6,9 +6,6 @@ interface WindowEntry {
 }
 
 const ipWindows = new Map<string, WindowEntry>();
-let globalTokens: number;
-let globalMaxTokens: number;
-let globalResetAt: number;
 
 /**
  * Create rate-limiting middleware.
@@ -18,12 +15,9 @@ let globalResetAt: number;
  * @param globalMax max requests total across ALL IPs in the window (0 = unlimited)
  */
 export function rateLimit(windowMs: number, max: number, globalMax = 0) {
-  // Initialize global bucket
-  if (globalMax > 0 && globalTokens === undefined) {
-    globalTokens = globalMax;
-    globalMaxTokens = globalMax;
-    globalResetAt = Date.now() + windowMs;
-  }
+  let globalTokens = globalMax;
+  const globalMaxTokens = globalMax;
+  let globalResetAt = Date.now() + windowMs;
 
   return (req: Request, res: Response, next: NextFunction) => {
     const ip = req.ip || req.socket.remoteAddress || 'unknown';

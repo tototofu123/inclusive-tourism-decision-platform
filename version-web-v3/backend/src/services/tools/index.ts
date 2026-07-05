@@ -7,6 +7,7 @@ import { checkAccessibilityTool } from './accessibilityChecks';
 import { getBusEtaByRouteAndStop } from '../busService';
 import { isMTRStationAccessible, findNearestMtr, estimateMtrTime } from './mtr';
 import { haversineMeters } from './utils';
+import { webSearchTool } from './webSearch';
 
 export { ToolResult, EmitFn, haversineMeters, isMTRStationAccessible, findNearestMtr, estimateMtrTime };
 export type { MtrStation } from './mtr';
@@ -71,6 +72,7 @@ export const TOOLS: any[] = [
           budget_level: { type: 'string', description: 'Budget level — values: cheap, medium, expensive. Only set if user explicitly mentions budget.' },
           budget_min_hkd: { type: 'number', description: 'Minimum daily budget in HKD — only set if user gives a specific number or range.' },
           budget_max_hkd: { type: 'number', description: 'Maximum daily budget in HKD — only set if user gives a specific number or range.' },
+          confirmed_itinerary_id: { type: 'number', description: 'Set this to pin/fix an itinerary so future edits build on it. Use when user says "use this itinerary", "pin this", "fix this plan", or "confirm this itinerary".' },
           home_base: { type: 'string', description: 'Area/neighborhood user is staying in — only set if user explicitly states it' },
         },
       },
@@ -225,6 +227,20 @@ export const TOOLS: any[] = [
   {
     type: 'function',
     function: {
+      name: 'web_search',
+      description: 'Search the web for real-time information: hotel facilities, travel tips, weather, events, operating hours, news, accessibility info, prep tips for Hong Kong. Use this when the user asks about facilities, tips, current conditions, or anything that needs up-to-date information beyond our database.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Search query, e.g. "Hong Kong Disneyland wheelchair access" or "best dim sum Tsim Sha Tsui reviews"' },
+        },
+        required: ['query'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'get_bus_eta',
       description: 'Get real-time bus arrival times for Citybus (CTB) or KMB routes in Hong Kong. Provide a route number and optionally a stop name, stop ID, and company. Without a stop, lists all stops on the route. Supports both Citybus (CTB) and KMB.',
       parameters: {
@@ -305,6 +321,8 @@ export async function executeTool(name: string, args: any, emit: EmitFn): Promis
       return checkAccessibilityTool(firstOf(args, 'place_name', 'name', 'place', 'location', 'query', 'q'));
     case 'set_preferences':
       return setPreferencesTool(args, emit);
+    case 'web_search':
+      return webSearchTool(args, emit);
     case 'get_bus_eta': {
       const route = firstOf(args, 'route', 'bus', 'line') || '';
       const stop = firstOf(args, 'stop', 'stop_name', 'location', 'place') || '';

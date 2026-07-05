@@ -2,6 +2,7 @@ import { LLMResponse } from '../types';
 import { chatCompletion } from './apiClient';
 
 const PROMPT = `You are a Hong Kong trip planner for accessible tourism. Output only valid JSON, no extra text.
+Keep your thinking/reasoning extremely brief and concise. Do not draft the JSON in your thinking.
 
 Rules:
 - Regions: Kowloon, Hong Kong Island, New Territories — use ALL three for Hong Kong trips
@@ -27,7 +28,7 @@ export async function planTrip(userText: string, context?: string): Promise<LLMR
         { role: 'user', content: prompt },
       ],
       undefined,
-      { temperature: 0.1, maxTokens: 2048 },
+      { temperature: 0.1, maxTokens: 4096 },
     );
     const content = r.content;
     console.log('planTrip: LLM response received, length:', content.length);

@@ -33,7 +33,7 @@ timeout /t 4 /nobreak >nul
 :: 3. LLM
 if exist "%LLAMA_EXE%" (
   if not "%MODEL_FILE%"=="" (
-    start "LLM 8081" cmd /k ""%LLAMA_EXE%" -m "%MODEL_FILE%" --port 8081 -ngl 99"
+    start "LLM 8081" cmd /k ""%LLAMA_EXE%" -m "%MODEL_FILE%" --port 8081 -ngl 99 -c 8192"
     timeout /t 4 /nobreak >nul
   ) else (
     start "LLM 8081" cmd /k "echo No .gguf model found in %LLAMA_MODELS_DIR% && echo. && pause"

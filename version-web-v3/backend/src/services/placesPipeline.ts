@@ -6,8 +6,9 @@ const PLACES_BASE = 'https://places.googleapis.com/v1/places:searchText';
 
 interface PlaceResult {
   name: string;
+  displayName?: { text: string };
   formattedAddress?: string;
-  location?: { lat: number; lng: number };
+  location?: { latitude: number; longitude: number };
   types?: string[];
   accessibilityOptions?: {
     wheelchairAccessibleEntrance?: boolean;
@@ -43,13 +44,33 @@ const SEARCH_QUERIES = [
   'Hong Kong cultural site',
   'night market Hong Kong',
   'family attraction Hong Kong',
+  'amusement park Hong Kong',
+  'Hong Kong beach scenic spot',
+  'Hong Kong observation deck',
+  'Hong Kong library',
+  'Hong Kong playground for kids',
+  'Hong Kong science museum',
+  'Hong Kong history museum',
+  'Hong Kong street art mural',
+  'Hong Kong ferry pier',
+  'Hong Kong harbour view restaurant',
+  'theme park Hong Kong kids',
+  'Hong Kong waterfall hike',
+  'Hong Kong aquarium dolphin',
+  'Hong Kong temple big buddha',
+  'Hong Kong walking trail scenic',
+  'Hong Kong heritage building',
+  'Hong Kong craft beer bar',
+  'Hong Kong dessert shop',
+  'Hong Kong flower market',
+  'Hong Kong bird garden',
 ];
 
 const HK_LOCATION_RESTRICTION = {
   circle: { center: { latitude: HK_PIPELINE_CENTER.lat, longitude: HK_PIPELINE_CENTER.lng }, radius: 25000 },
 };
 
-export async function runPlacesPipeline(maxQueries = 20): Promise<{ added: number; skipped: number }> {
+export async function runPlacesPipeline(maxQueries = 40): Promise<{ added: number; skipped: number }> {
   let added = 0;
   let skipped = 0;
 
@@ -59,9 +80,10 @@ export async function runPlacesPipeline(maxQueries = 20): Promise<{ added: numbe
   for (const result of results) {
     if (result.status === 'rejected') continue;
     for (const place of result.value) {
+      const displayName = place.displayName?.text || place.name;
       const existing = await query(
         'SELECT id FROM places WHERE LOWER(name) = LOWER($1) LIMIT 1',
-        [place.name],
+        [displayName],
       );
       if (existing.rows.length > 0) { skipped++; continue; }
 
@@ -72,8 +94,8 @@ export async function runPlacesPipeline(maxQueries = 20): Promise<{ added: numbe
       if (place.accessibilityOptions?.wheelchairAccessibleSeating) tags.push('accessible seating');
 
       const category = inferCategory(place.types || []);
-      const lat = place.location?.lat || HK_PIPELINE_CENTER.lat;
-      const lng = place.location?.lng || HK_PIPELINE_CENTER.lng;
+      const lat = place.location?.latitude || HK_PIPELINE_CENTER.lat;
+      const lng = place.location?.longitude || HK_PIPELINE_CENTER.lng;
       const score = tags.length >= 2 ? 5 : tags.length === 1 ? 3 : 1;
 
       const priceMap: Record<string, string> = {
@@ -88,11 +110,11 @@ export async function runPlacesPipeline(maxQueries = 20): Promise<{ added: numbe
         : null;
 
       await query(
-        `INSERT INTO places (name, category, lat, lng, description, accessibility_tags, accessibility_score, region, price_level, phone, website, opening_hours)
-         SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+        `INSERT INTO places (name, category, lat, lng, description, accessibility_tags, accessibility_score, region, budget, address, opening_hours)
+         SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
          WHERE NOT EXISTS (SELECT 1 FROM places WHERE LOWER(name) = LOWER($1) AND ABS(lat - $3) < 0.01 AND ABS(lng - $4) < 0.01)`,
         [
-          place.name,
+          displayName,
           category,
           lat,
           lng,
@@ -101,8 +123,7 @@ export async function runPlacesPipeline(maxQueries = 20): Promise<{ added: numbe
           score,
           inferRegion(lat, lng),
           priceLevel,
-          phone,
-          website,
+          place.formattedAddress || '',
           openingHours,
         ],
       );
@@ -124,7 +145,7 @@ async function searchGooglePlaces(query: string): Promise<PlaceResult[]> {
     headers: {
       'Content-Type': 'application/json',
       'X-Goog-Api-Key': MAPS_API_KEY,
-      'X-Goog-FieldMask': 'places.name,places.formattedAddress,places.location,places.types,places.accessibilityOptions,places.rating,places.priceLevel,places.nationalPhoneNumber,places.websiteUri,places.regularOpeningHours',
+      'X-Goog-FieldMask': 'places.name,places.displayName,places.formattedAddress,places.location,places.types,places.accessibilityOptions,places.rating,places.priceLevel,places.nationalPhoneNumber,places.websiteUri,places.regularOpeningHours',
     },
     body: JSON.stringify(body),
   });
@@ -140,14 +161,19 @@ async function searchGooglePlaces(query: string): Promise<PlaceResult[]> {
 function inferCategory(types: string[]): string {
   if (types.some(t => t.includes('museum'))) return 'museum';
   if (types.some(t => t.includes('restaurant') || t.includes('food'))) return 'restaurant';
-  if (types.some(t => t.includes('park') || t.includes('garden'))) return 'park';
+  if (types.some(t => t.includes('park') || t.includes('garden') || t.includes('beach') || t.includes('waterfall'))) return 'park';
   if (types.some(t => t.includes('cafe') || t.includes('coffee'))) return 'cafe';
   if (types.some(t => t.includes('shopping') || t.includes('mall'))) return 'shopping_mall';
-  if (types.some(t => t.includes('temple') || t.includes('church'))) return 'temple';
-  if (types.some(t => t.includes('art') || t.includes('gallery'))) return 'art_gallery';
+  if (types.some(t => t.includes('temple') || t.includes('church') || t.includes('buddha'))) return 'temple';
+  if (types.some(t => t.includes('art') || t.includes('gallery') || t.includes('mural'))) return 'art_gallery';
   if (types.some(t => t.includes('hotel'))) return 'hotel';
   if (types.some(t => t.includes('market'))) return 'market';
-  if (types.some(t => t.includes('tourist') || t.includes('view') || t.includes('harbor'))) return 'viewpoint';
+  if (types.some(t => t.includes('tourist') || t.includes('view') || t.includes('harbor') || t.includes('observation') || t.includes('skyline') || t.includes('trail') || t.includes('scenic'))) return 'viewpoint';
+  if (types.some(t => t.includes('amusement') || t.includes('theme') || t.includes('aquarium') || t.includes('playground') || t.includes('zoo'))) return 'amusement_park';
+  if (types.some(t => t.includes('historic') || t.includes('heritage') || t.includes('castle'))) return 'historic_site';
+  if (types.some(t => t.includes('ferry') || t.includes('transit') || t.includes('station') || t.includes('airport') || t.includes('bus'))) return 'transport_hub';
+  if (types.some(t => t.includes('library'))) return 'library';
+  if (types.some(t => t.includes('bar') || t.includes('night') || t.includes('entertainment'))) return 'entertainment';
   if (types.some(t => t.includes('toilet') || t.includes('restroom') || t.includes('bathroom'))) return 'restroom';
   return 'attraction';
 }

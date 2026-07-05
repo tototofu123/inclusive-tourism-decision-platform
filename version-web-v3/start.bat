@@ -25,7 +25,7 @@ set LLAMA_MODELS=%USERPROFILE%\.llama\models
 set MODEL_FILE=%LLAMA_MODELS%\Qwythos-9B-Claude-Mythos-5-1M-Q4_K_M.gguf
 if exist "%LLAMA_EXE%" (
   if exist "%MODEL_FILE%" (
-    start "LLM 8081" cmd /k ""%LLAMA_EXE%" -m "%MODEL_FILE%" --port 8081 -ngl 99"
+    start "LLM 8081" cmd /k ""%LLAMA_EXE%" -m "%MODEL_FILE%" --port 8081 -ngl 99 -c 8192"
   ) else (
     start "LLM 8081" cmd /k "echo Model not found: %MODEL_FILE% && pause"
   )

@@ -76,7 +76,7 @@ router.post('/models/switch', async (req: Request, res: Response) => {
 
     await new Promise(r => setTimeout(r, 2000));
 
-    const proc = spawn(LLAMA_EXE, ['-m', modelPath, '--port', '8081', '-ngl', '99'], {
+    const proc = spawn(LLAMA_EXE, ['-m', modelPath, '--port', '8081', '-ngl', '99', '-c', '8192'], {
       detached: true,
       stdio: 'ignore',
     });

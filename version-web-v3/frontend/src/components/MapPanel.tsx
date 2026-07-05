@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import dynamic from 'next/dynamic';
 
 const GoogleMapView = dynamic(() => import('./GoogleMapView'), { ssr: false });
+const MapView = dynamic(() => import('./MapView'), { ssr: false });
 
 export default function MapPanel({
   tab, categoryFilter, setCategoryFilter, dayFilter, setDayFilter,
@@ -10,6 +12,7 @@ export default function MapPanel({
   dayFilter: number | null; setDayFilter: (v: number | null) => void;
   detail?: any; hasNoItinerary: boolean; storedPlaces: any[]; currentPlaces: any[]; mapRoutes: any[];
 }) {
+  const [mapProvider, setMapProvider] = useState<'google' | 'leaflet'>('google');
   const daysFromDetail = detail ? [...new Set<number>((detail.items || []).map((i: any) => i.day_number || 1))].sort() : [];
 
   const markers = (() => {
@@ -55,6 +58,11 @@ export default function MapPanel({
             ))}
           </div>
         )}
+        <div className="map-filter-row">
+          <span className="map-filter-label">Map Source:</span>
+          <button className={`map-day-btn ${mapProvider === 'google' ? 'active' : ''}`} onClick={() => setMapProvider('google')}>Google Maps</button>
+          <button className={`map-day-btn ${mapProvider === 'leaflet' ? 'active' : ''}`} onClick={() => setMapProvider('leaflet')}>OpenStreetMap (Leaflet)</button>
+        </div>
       </div>
       <div className="map-full">
         {hasNoItinerary && storedPlaces.length === 0 && (
@@ -63,7 +71,11 @@ export default function MapPanel({
             <p>Open an itinerary from the Itinerary tab or start a new chat to plan one.</p>
           </div>
         )}
-        <GoogleMapView markers={markers} routes={mapRoutes} />
+        {mapProvider === 'google' ? (
+          <GoogleMapView markers={markers} routes={mapRoutes} onLoadError={() => setMapProvider('leaflet')} />
+        ) : (
+          <MapView markers={markers} routes={mapRoutes} />
+        )}
       </div>
     </>
   );

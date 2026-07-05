@@ -189,6 +189,21 @@ async function ensureConnected() {
         getLocalDb(); // init schema
       } else {
         console.log('DB: PostgreSQL connected');
+        try {
+          await pool.query('ALTER TABLE global_preferences ADD COLUMN IF NOT EXISTS budget_min_hkd double precision;');
+          await pool.query('ALTER TABLE global_preferences ADD COLUMN IF NOT EXISTS budget_max_hkd double precision;');
+          await pool.query('ALTER TABLE global_preferences ADD COLUMN IF NOT EXISTS urgent_mode integer DEFAULT 0;');
+          await pool.query('ALTER TABLE global_preferences ADD COLUMN IF NOT EXISTS confirmed_itinerary_id integer;');
+          
+          await pool.query('ALTER TABLE places ADD COLUMN IF NOT EXISTS price_level text;');
+          await pool.query('ALTER TABLE places ADD COLUMN IF NOT EXISTS phone text;');
+          await pool.query('ALTER TABLE places ADD COLUMN IF NOT EXISTS website text;');
+          await pool.query('ALTER TABLE places ADD COLUMN IF NOT EXISTS opening_hours text;');
+          
+          console.log('DB: PostgreSQL tables verified/updated');
+        } catch (e) {
+          console.warn('DB self-healing warning:', (e as Error).message);
+        }
       }
     })();
   }

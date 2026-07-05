@@ -2,10 +2,11 @@ import { LLMResponse } from '../types';
 import { chatCompletion } from './apiClient';
 
 const PROMPT = `You are a Hong Kong trip planner for accessible tourism. Output only valid JSON, no extra text.
+Keep your thinking/reasoning extremely brief and concise. Do not draft the JSON in your thinking.
 
 Rules:
-- Regions: Kowloon, Hong Kong Island, New Territories — use ALL three for Hong Kong trips
-- Categories: museum, cafe, park, temple, shopping_mall, viewpoint, restaurant, market, art_gallery, historic_site, hotel
+- Regions: Kowloon, Hong Kong Island, New Territories. You do NOT need to include all three regions on every single day (e.g., Day 1 can be Kowloon, Day 2 Hong Kong Island, etc.).
+- Categories: museum, cafe, park, temple, shopping_mall, viewpoint, restaurant, market, art_gallery, historic_site, hotel, amusement_park, attraction
 - Each stop: 20-120 min duration
 - Detect days from user request. If unspecified, use 1 day.
 - DAYS = total days in the trip
@@ -19,20 +20,20 @@ Output format:
 
 export async function planTrip(userText: string, context?: string, mobilityContext?: string): Promise<LLMResponse> {
   console.log('planTrip: calling LLM...');
-  let prompt = `${PROMPT}\n\nPlan a trip for: ${userText}\n\nJSON:`;
-  if (context) prompt = `${PROMPT}\n\nExisting trip context:\n${context}\n\nModify or replace based on the new request: ${userText}\n\nJSON:`;
+  let userContent = `Plan a trip for: ${userText}`;
+  if (context) userContent = `Existing trip context:\n${context}\n\nModify or replace based on the new request: ${userText}`;
   if (mobilityContext) {
-    prompt = `${PROMPT}\n\nUser accessibility/mobility context:\n${mobilityContext}\n\nPlan a trip for: ${userText}\n\nJSON:`;
-    if (context) prompt = `${PROMPT}\n\nUser accessibility/mobility context:\n${mobilityContext}\n\nExisting trip context:\n${context}\n\nModify or replace based on the new request: ${userText}\n\nJSON:`;
+    userContent = `User accessibility/mobility context:\n${mobilityContext}\n\nPlan a trip for: ${userText}`;
+    if (context) userContent = `User accessibility/mobility context:\n${mobilityContext}\n\nExisting trip context:\n${context}\n\nModify or replace based on the new request: ${userText}`;
   }
   try {
     const r = await chatCompletion(
       [
-        { role: 'system', content: 'Output only valid JSON.' },
-        { role: 'user', content: prompt },
+        { role: 'system', content: PROMPT },
+        { role: 'user', content: userContent },
       ],
-      undefined,
-      { temperature: 0.1, maxTokens: 2048 },
+      [],
+      { temperature: 0.4, maxTokens: 4096 },
     );
     const content = r.content;
     console.log('planTrip: LLM response received, length:', content.length);
