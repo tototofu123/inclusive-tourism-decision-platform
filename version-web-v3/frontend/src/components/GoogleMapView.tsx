@@ -48,6 +48,29 @@ const LEGEND_ITEMS = [
 const API_KEY = process.env.NEXT_PUBLIC_MAPS_API_KEY || '';
 const MAP_ID = process.env.NEXT_PUBLIC_MAPS_MAP_ID || '';
 
+/** Spiral jitter so markers sharing the same lat/lng don't stack.
+ *  First occurrence keeps the original coords; duplicates fan out in
+ *  a Fermat spiral (~0.0002° ≈ 20 m per step, invisible at city zoom). */
+function applyJitter(
+  markers: { lat: number; lng: number; label: string; category?: string; day?: number; type?: 'itinerary' | 'saved' }[]
+) {
+  const seen = new Map<string, number>();
+  return markers.map(m => {
+    const key = `${m.lat.toFixed(5)},${m.lng.toFixed(5)}`;
+    const count = seen.get(key) ?? 0;
+    seen.set(key, count + 1);
+    if (count === 0) return m;
+    // Fermat spiral offset
+    const angle = count * 2.399963; // golden angle in radians
+    const radius = 0.00018 * Math.sqrt(count);
+    return {
+      ...m,
+      lat: m.lat + radius * Math.sin(angle),
+      lng: m.lng + radius * Math.cos(angle),
+    };
+  });
+}
+
 export default function GoogleMapView({
   markers, routes, className, accessibilityScores, accessibilityTags, onLoadError,
 }: {
@@ -63,7 +86,6 @@ export default function GoogleMapView({
   const mapRef = useRef<google.maps.Map | null>(null);
   const userInteracted = useRef(false);
   const prevKey = useRef('');
-  const fitRequested = useRef(false);
 
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
@@ -86,30 +108,33 @@ export default function GoogleMapView({
     map.addListener('dragend', () => { userInteracted.current = true; });
   }, []);
 
-  // Fit bounds when markers change
+  // Fit bounds only when the set of markers genuinely changes
   const newKey = markers.map(m => `${m.lat},${m.lng}`).join('|');
   const markersChanged = newKey !== prevKey.current;
-  prevKey.current = newKey;
+  if (markersChanged) {
+    prevKey.current = newKey;
+    userInteracted.current = false; // allow re-fit when itinerary switches
+  }
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || markers.length === 0) return;
-    if (!userInteracted.current || markersChanged) {
-      fitRequested.current = true;
-      const bounds = new google.maps.LatLngBounds();
-      let hasBounds = false;
-      markers.forEach(m => {
-        if (m.lat && m.lng) { bounds.extend({ lat: m.lat, lng: m.lng }); hasBounds = true; }
+    if (!map || markers.length === 0 || userInteracted.current) return;
+    const bounds = new google.maps.LatLngBounds();
+    let hasBounds = false;
+    markers.forEach(m => {
+      if (m.lat && m.lng) { bounds.extend({ lat: m.lat, lng: m.lng }); hasBounds = true; }
+    });
+    if (hasBounds) {
+      const padding = window.innerWidth < 600 ? 40 : 80;
+      map.fitBounds(bounds, padding);
+      const listener = map.addListener('bounds_changed', () => {
+        const z = map.getZoom();
+        if (z && z > 15) map.setZoom(15);
+        google.maps.event.removeListener(listener);
       });
-      if (hasBounds) {
-        map.fitBounds(bounds, 80);
-        const listener = map.addListener('bounds_changed', () => {
-          if (map.getZoom() && map.getZoom()! > 16) map.setZoom(16);
-          google.maps.event.removeListener(listener);
-        });
-      }
     }
-  }, [markers, markersChanged]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newKey]);
 
   if (loadError) {
     return <div className={className} style={{ ...CONTAINER_STYLE, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#e74c3c' }}>Failed to load Google Maps — check API key</div>;
@@ -119,17 +144,18 @@ export default function GoogleMapView({
     return <div className={className} style={{ ...CONTAINER_STYLE, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>Loading map…</div>;
   }
 
-  const zoomLevel = zoom || 13;
+  // Apply jitter before splitting so jittered coords match between the two passes
+  const jittered = applyJitter(markers);
 
-  const itinMarkers: typeof markers = [];
-  const savedMarkers: typeof markers = [];
-  markers.forEach(m => {
+  const itinMarkers: (typeof jittered[number])[] = [];
+  const savedMarkers: (typeof jittered[number])[] = [];
+  jittered.forEach(m => {
     if (m.type === 'saved') savedMarkers.push(m);
     else itinMarkers.push(m);
   });
 
   const allVisible = [...itinMarkers, ...savedMarkers];
-
+  // counters reset per render (not module-level)
   let itinCounter = 0;
   let savedCounter = 0;
 
@@ -153,16 +179,17 @@ export default function GoogleMapView({
       >
         {allVisible.map((m, idx) => {
           if (!m.lat || !m.lng) return null;
-          const key = `${m.lat},${m.lng}`;
+          const origKey = `${markers[idx]?.lat},${markers[idx]?.lng}`;
           const isItin = m.type !== 'saved';
           const color = COLORS[m.category || ''] || '#0070f3';
 
           if (isItin) {
             itinCounter++;
-            const tags = accessibilityTags?.get(key);
+            const tags = accessibilityTags?.get(origKey);
+            const localCount = itinCounter;
             return (
               <Marker
-                key={`m-${idx}`}
+                key={`m-${idx}-${m.lat}-${m.lng}`}
                 position={{ lat: m.lat, lng: m.lng }}
                 icon={{
                   path: google.maps.SymbolPath.CIRCLE,
@@ -173,7 +200,7 @@ export default function GoogleMapView({
                   strokeWeight: 3,
                   labelOrigin: new google.maps.Point(0, 0),
                 }}
-                label={{ text: String(itinCounter), color: '#fff', fontSize: '13px', fontWeight: 'bold' }}
+                label={{ text: String(localCount), color: '#fff', fontSize: '13px', fontWeight: 'bold' }}
                 onClick={() => setSelectedIdx(idx)}
               >
                 {selectedIdx === idx && (
@@ -190,9 +217,10 @@ export default function GoogleMapView({
           }
 
           savedCounter++;
+          const localSaved = savedCounter;
           return (
             <Marker
-              key={`s-${idx}`}
+              key={`s-${idx}-${m.lat}-${m.lng}`}
               position={{ lat: m.lat, lng: m.lng }}
               icon={{
                 path: google.maps.SymbolPath.CIRCLE,
@@ -203,7 +231,7 @@ export default function GoogleMapView({
                 strokeWeight: 3,
                 labelOrigin: new google.maps.Point(0, 0),
               }}
-              label={{ text: String(savedCounter), color: '#fff', fontSize: '11px', fontWeight: 'bold' }}
+              label={{ text: String(localSaved), color: '#fff', fontSize: '11px', fontWeight: 'bold' }}
               title={m.label}
               onClick={() => setSelectedIdx(idx)}
             >
